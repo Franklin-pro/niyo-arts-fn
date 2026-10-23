@@ -24,7 +24,7 @@ export interface ApiProduct {
   id: string;
   slug: string;
   title: string;
-  artist: Pick<ApiArtist, "slug" | "name" | "location" | "medium" | "imageUrl">;
+  artist: Pick<ApiArtist, "slug" | "name" | "location" | "medium" | "imageUrl"> | null;
   type: string;
   category: string;
   price: number;

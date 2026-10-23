@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import { useAuth } from "@/components/site-provider";
@@ -35,10 +36,10 @@ const SECTIONS: { key: AdminSection; label: string; singular: string; icon: Luci
 
 const TEMPLATES: Partial<Record<AdminSection, object>> = {
   artists: { slug: "", name: "", location: "", medium: "", bio: "", imageUrl: "" },
-  collections: { slug: "", title: "", line: "", description: "", imageUrl: "", productSlugs: [] },
 };
 
 type ProductFormValues = Omit<AdminProductInput, "price"> & { price: string };
+type CollectionFormValues = Omit<AdminCollectionInput, "productSlugs"> & { productSlugs: string };
 
 const EMPTY_PRODUCT: ProductFormValues = {
   slug: "",
@@ -51,6 +52,20 @@ const EMPTY_PRODUCT: ProductFormValues = {
   imageUrl: "",
   description: "",
 };
+
+const EMPTY_COLLECTION: CollectionFormValues = {
+  slug: "",
+  title: "",
+  line: "",
+  description: "",
+  imageUrl: "",
+  productSlugs: "",
+};
+
+function slugFromTitle(title: string) {
+  return title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
 
 const ORDER_STATUSES = ["processing", "shipped", "delivered", "cancelled"] as const;
 const MESSAGE_STATUSES = ["new", "read", "replied"] as const;
@@ -165,6 +180,13 @@ function orderStatus(row: AdminRow) {
   return String(row.fulfillmentStatus || row.status || "");
 }
 
+function productUploadTime(row: AdminRow) {
+  const value = row.uploadedAt ?? row.createdAt ?? row.uploaded_at ?? row.created_at;
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
 function useCountUp(target: number) {
   const [value, setValue] = useState(0);
   useEffect(() => {
@@ -212,15 +234,38 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [payload, setPayload] = useState("");
   const [productForm, setProductForm] = useState<ProductFormValues>(EMPTY_PRODUCT);
+  const [collectionForm, setCollectionForm] = useState<CollectionFormValues>(EMPTY_COLLECTION);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [slugFollowsTitle, setSlugFollowsTitle] = useState(false);
+  const [collectionSlugFollowsTitle, setCollectionSlugFollowsTitle] = useState(false);
   const adminSection = section as AdminSection;
   const meta = SECTIONS.find((item) => item.key === section);
   const validSection = Boolean(meta);
   const MetaIcon = meta?.icon ?? LayoutDashboard;
   const isAdmin = user?.role === "admin";
+  const [artistOptions, setArtistOptions] = useState<{ id: string; name: string; slug?: string }[]>([]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await adminApi.artists.list();
+        const options = toAdminRows(res.data).map((row) => ({
+          id: String(row.id ?? ""),
+          name: String(row.name ?? row.slug ?? "Unnamed artist"),
+          slug: row.slug ? String(row.slug) : undefined,
+        })).filter((artist) => artist.id);
+        if (!cancelled) setArtistOptions(options);
+      } catch {
+        if (!cancelled) setArtistOptions([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAdmin]);
 
   const { data: rows, error: loadError, loading } = useResource(
     async () => (!validSection || !isAdmin ? ([] as AdminRow[]) : loadSection(adminSection)),
@@ -261,6 +306,7 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
     setError("");
     setNotice("");
     if (adminSection === "products") {
+      setSlugFollowsTitle(!row);
       setProductForm({
         slug: String(row?.slug || ""),
         title: String(row?.title || ""),
@@ -271,6 +317,22 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
         currency: String(row?.currency || ""),
         imageUrl: String(row?.imageUrl || ""),
         description: String(row?.description || ""),
+      });
+    } else if (adminSection === "collections") {
+      setCollectionSlugFollowsTitle(!row);
+      const productSlugs = Array.isArray(row?.productSlugs)
+        ? row.productSlugs.map(String)
+        : Array.isArray(row?.products)
+          ? row.products.flatMap((product) =>
+            product && typeof product === "object" && "slug" in product ? [String(product.slug)] : [])
+          : [];
+      setCollectionForm({
+        slug: String(row?.slug || ""),
+        title: String(row?.title || ""),
+        line: String(row?.line || ""),
+        description: String(row?.description || ""),
+        imageUrl: String(row?.imageUrl || ""),
+        productSlugs: productSlugs.join(", "),
       });
     } else {
       setPayload(JSON.stringify(row ?? TEMPLATES[adminSection] ?? {}, null, 2));
@@ -317,6 +379,17 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
       return;
     }
 
+    if (adminSection === "collections") {
+      const input: AdminCollectionInput = {
+        ...collectionForm,
+        productSlugs: collectionForm.productSlugs.split(",").map((slug) => slug.trim()).filter(Boolean),
+      };
+      await runAction(() => selected?.slug
+        ? adminApi.collections.update(selected.slug, input)
+        : adminApi.collections.create(input));
+      return;
+    }
+
     try {
       const record = parsePayload();
       if (adminSection === "artists") {
@@ -331,18 +404,6 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
         await runAction(() => selected?.slug
           ? adminApi.artists.update(selected.slug, input)
           : adminApi.artists.create(input));
-      } else if (adminSection === "collections") {
-        const input: AdminCollectionInput = {
-          slug: String(record.slug || ""),
-          title: String(record.title || ""),
-          line: String(record.line || ""),
-          description: String(record.description || ""),
-          imageUrl: String(record.imageUrl || ""),
-          productSlugs: Array.isArray(record.productSlugs) ? record.productSlugs.map(String) : [],
-        };
-        await runAction(() => selected?.slug
-          ? adminApi.collections.update(selected.slug, input)
-          : adminApi.collections.create(input));
       } else {
         throw new Error("Editing is not available for this section.");
       }
@@ -372,11 +433,25 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
   })();
 
   const updateProductField = (field: keyof ProductFormValues, value: string) => {
-    setProductForm((current) => ({ ...current, [field]: value }));
+    if (field === "slug") setSlugFollowsTitle(false);
+    setProductForm((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === "title" && slugFollowsTitle ? { slug: slugFromTitle(value) } : {}),
+    }));
     setError("");
   };
 
-  const filtered = (rows ?? []).filter((row) => !query.trim() || JSON.stringify(row).toLowerCase().includes(query.trim().toLowerCase()));
+  const filteredRows = adminSection === "products"
+    ? (rows ?? []).map((row, index) => ({ row, index, uploadedAt: productUploadTime(row) }))
+      .sort((a, b) => {
+        if (a.uploadedAt === null) return b.uploadedAt === null ? a.index - b.index : 1;
+        if (b.uploadedAt === null) return -1;
+        return b.uploadedAt - a.uploadedAt || a.index - b.index;
+      })
+      .map(({ row }) => row)
+    : rows ?? [];
+  const filtered = filteredRows.filter((row) => !query.trim() || JSON.stringify(row).toLowerCase().includes(query.trim().toLowerCase()));
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user.name.split(" ")[0];
@@ -385,7 +460,9 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
     <div className="adm">
       {/* ------------------------------- Sidebar ------------------------------- */}
       <aside className="adm-side">
-        <p className="adm-side-title">Studio</p>
+        <Link className="adm-brand" href="/" aria-label="Niyo Arts home">
+          <Image src="/niyo-art-white.png" alt="Niyo Arts Gallery" width={200} height={130} priority />
+        </Link>
         <nav aria-label="Admin sections">
           <Link href="/admin" className="adm-nav" aria-current={!validSection ? "page" : undefined}>
             <LayoutDashboard /> <span>Overview</span>
@@ -574,9 +651,9 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
                   <h2>{selected?.slug ? "Edit" : "New"} {meta.singular}</h2>
                   <p>
                     {adminSection === "products"
-                      ? "Enter the product details below. Products need an artist ID."
+                      ? "Enter the product details below. The URL slug is generated from the title."
                       : adminSection === "collections"
-                        ? "Only fields accepted by the API are saved. Collection productSlugs must be active products."
+                        ? "Add collection details and enter the slugs of active products, separated by commas."
                         : "Only fields accepted by the API are saved."}
                   </p>
                 </div>
@@ -584,19 +661,74 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
               </header>
 
               <div className="adm-editor">
-                {adminSection === "products" ? (
+                {adminSection === "collections" ? (
+                  <div className="adm-collection-fields">
+                    <label>
+                      Slug
+                      <input required value={collectionForm.slug} onChange={(event) => {
+                        setCollectionSlugFollowsTitle(false);
+                        setCollectionForm((current) => ({ ...current, slug: event.target.value }));
+                      }} />
+                    </label>
+                    <label>
+                      Title
+                      <input required value={collectionForm.title} onChange={(event) => {
+                        const title = event.target.value;
+                        setCollectionForm((current) => ({
+                          ...current,
+                          title,
+                          ...(collectionSlugFollowsTitle ? { slug: slugFromTitle(title) } : {}),
+                        }));
+                      }} />
+                      <small className="adm-product-hint">Slug is generated from the title; edit it to customize.</small>
+                    </label>
+                    <label>
+                      Line
+                      <input required value={collectionForm.line} onChange={(event) => setCollectionForm((current) => ({ ...current, line: event.target.value }))} />
+                    </label>
+                    <label>
+                      Image URL
+                      <input required type="url" value={collectionForm.imageUrl} onChange={(event) => setCollectionForm((current) => ({ ...current, imageUrl: event.target.value }))} />
+                    </label>
+                    <label className="adm-collection-fields-wide">
+                      Description
+                      <textarea required rows={5} value={collectionForm.description} onChange={(event) => setCollectionForm((current) => ({ ...current, description: event.target.value }))} />
+                    </label>
+                    <label className="adm-collection-fields-wide">
+                      Product slugs
+                      <input value={collectionForm.productSlugs} onChange={(event) => setCollectionForm((current) => ({ ...current, productSlugs: event.target.value }))} placeholder="e.g. blue-vase, woven-basket" />
+                      <small className="adm-product-hint">Separate active product slugs with commas.</small>
+                    </label>
+                  </div>
+                ) : adminSection === "products" ? (
                   <div className="adm-product-fields">
                     <label>
                       Slug
                       <input required value={productForm.slug} onChange={(event) => updateProductField("slug", event.target.value)} />
+                      <small className="adm-product-hint">Auto-filled from title; edit to customize.</small>
                     </label>
                     <label>
                       Title
                       <input required value={productForm.title} onChange={(event) => updateProductField("title", event.target.value)} />
                     </label>
                     <label>
-                      Artist ID
-                      <input required value={productForm.artistId} onChange={(event) => updateProductField("artistId", event.target.value)} />
+                      Artist
+                      <select
+                        required
+                        value={productForm.artistId}
+                        onChange={(event) => updateProductField("artistId", event.target.value)}
+                      >
+                        <option value="">Select an artist…</option>
+                        {artistOptions.map((artist) => (
+                          <option key={artist.id} value={artist.id}>
+                            {artist.name}{artist.slug ? ` (/${artist.slug})` : ""}
+                          </option>
+                        ))}
+                        {/* keep a stale/orphan id selectable when editing an existing product */}
+                        {productForm.artistId && !artistOptions.some((artist) => artist.id === productForm.artistId) && (
+                          <option value={productForm.artistId}>{productForm.artistId} (unknown)</option>
+                        )}
+                      </select>
                     </label>
                     <label>
                       Type
@@ -649,7 +781,7 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
 
               <footer>
                 <button className="adm-cancel" type="button" onClick={closeEditor}>Cancel</button>
-                <button className="button-link" type="submit" disabled={busy || (adminSection !== "products" && !json.ok)}>
+                <button className="button-link" type="submit" disabled={busy || (adminSection === "artists" && !json.ok)}>
                   {busy ? <><Loader2 className="adm-spin" /> Saving…</> : <>Save changes</>}
                 </button>
               </footer>

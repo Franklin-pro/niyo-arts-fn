@@ -194,7 +194,9 @@ export function ProductPage({ slug, onAdd, signedIn, adding }: { slug: string; o
           <p className="section-kicker">{p.type}</p>
           <h1>{p.title}</h1>
           <p className="artist-name">
-            by <Link href={`/artists/${p.artistSlug}`}>{p.artist}</Link>
+            by {p.artistSlug
+              ? <Link href={`/artists/${p.artistSlug}`}>{p.artist}</Link>
+              : p.artist}
           </p>
           <p className="product-price">
             {p.currency} {p.price.toLocaleString()}
@@ -214,7 +216,7 @@ export function ProductPage({ slug, onAdd, signedIn, adding }: { slug: string; o
           <div className="accordions">
             <details open>
               <summary>Details <ChevronDown /></summary>
-              <p>{p.type} · Ships worldwide</p>
+              <p>{p.description}</p>
             </details>
             <details>
               <summary>Delivery & returns <ChevronDown /></summary>

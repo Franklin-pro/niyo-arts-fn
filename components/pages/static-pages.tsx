@@ -1,74 +1,159 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ApiRequestError, submitContact } from "@/services/api";
-import { ArrowUpRight } from "lucide-react";
+
 import { CheckoutField } from "./commerce-pages";
 import { image } from "./shared";
+import { useState } from "react";
+import { ArrowUpRight } from "lucide-react";
+import { ApiRequestError, submitContact } from "@/services/api";
+// import "./contact.css";
+
+// TODO: replace with your real address
+const CONTACT_EMAIL = "hello@niyoarts.com";
+
+const EMPTY_FORM = { name: "", email: "", subject: "", message: "" };
 
 export function Contact() {
-  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [emailWarning, setEmailWarning] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const set = (key: keyof typeof EMPTY_FORM) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((current) => ({ ...current, [key]: event.target.value }));
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+    try {
+      const result = await submitContact({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        ...(form.subject.trim() ? { subject: form.subject.trim() } : {}),
+        message: form.message.trim(),
+      });
+      setSuccess(result.message);
+      setEmailWarning(
+        result.data.notificationEmail === "failed"
+          ? "Your message was saved, but the notification email could not be delivered."
+          : ""
+      );
+      setForm(EMPTY_FORM);
+    } catch (reason) {
+      setError(
+        reason instanceof ApiRequestError && reason.validationErrors.length
+          ? reason.validationErrors.map((item) => `${item.path}: ${item.message}`).join(" ")
+          : reason instanceof Error
+            ? reason.message
+            : "Unable to send your message."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
-    <section className="generic-page">
-      <p className="section-kicker">Niyo / info</p>
-      <h1>Contact</h1>
-      <div className="generic-content">
-        <p>Questions about an artwork or your order? Send us a message.</p>
+    <section className="contact-page">
+      <header className="contact-intro">
+        <h1>Contact</h1>
+        <p className="contact-lead">
+          Questions about an artwork, a commission or your order? Send us a message and we will reply by email.
+        </p>
+
+        <dl className="contact-details">
+          <div>
+            <dt>Email</dt>
+            <dd>
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+            </dd>
+          </div>
+          <div>
+            <dt>Artwork enquiries</dt>
+            <dd>Include the title of the piece so we can find it quickly.</dd>
+          </div>
+          <div>
+            <dt>Orders and shipping</dt>
+            <dd>Include your order number if you have one.</dd>
+          </div>
+        </dl>
+      </header>
+
+      <div className="contact-panel">
         {success ? (
-          <>
-            <p role="status">{success}</p>
-            {emailWarning && <p role="status">{emailWarning}</p>}
-          </>
+          <div className="contact-success" role="status">
+            <h2>Message sent</h2>
+            <p>{success}</p>
+            {emailWarning && <p className="contact-note">{emailWarning}</p>}
+            <button type="button" className="contact-text-button" onClick={() => setSuccess("")}>
+              Send another message
+            </button>
+          </div>
         ) : (
-          <form
-            className="checkout-form"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              setError("");
-              setSuccess("");
-              setSubmitting(true);
-              try {
-                const result = await submitContact({
-                  name: form.name.trim(),
-                  email: form.email.trim(),
-                  ...(form.subject.trim() ? { subject: form.subject.trim() } : {}),
-                  message: form.message.trim(),
-                });
-                setSuccess(result.message);
-                setEmailWarning(result.data.notificationEmail === "failed"
-                  ? "Your message was saved, but the notification email could not be delivered."
-                  : "");
-                setForm({ name: "", email: "", subject: "", message: "" });
-              } catch (reason) {
-                setError(reason instanceof ApiRequestError && reason.validationErrors.length
-                  ? reason.validationErrors.map((item) => `${item.path}: ${item.message}`).join(" ")
-                  : reason instanceof Error ? reason.message : "Unable to send your message.");
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-          >
-            <CheckoutField label="Name">
-              <input required minLength={2} maxLength={160} autoComplete="name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-            </CheckoutField>
-            <CheckoutField label="Email">
-              <input required type="email" maxLength={254} autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-            </CheckoutField>
-            <CheckoutField label="Subject (optional)">
-              <input maxLength={200} value={form.subject} onChange={(event) => setForm({ ...form, subject: event.target.value })} />
-            </CheckoutField>
-            <CheckoutField label="Message">
-              <textarea required minLength={10} maxLength={5000} rows={6} value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} />
-            </CheckoutField>
-            {error && <p className="field-error" role="alert">{error}</p>}
-            <button type="submit" className="button-link" disabled={submitting}>
-              {submitting ? "Sending…" : "Send message"} <ArrowUpRight />
+          <form className="contact-form" onSubmit={handleSubmit} noValidate={false}>
+            <div className="contact-row">
+              <div className="contact-field">
+                <label htmlFor="contact-name">Name</label>
+                <input
+                  id="contact-name"
+                  required
+                  minLength={2}
+                  maxLength={160}
+                  autoComplete="name"
+                  value={form.name}
+                  onChange={set("name")}
+                />
+              </div>
+              <div className="contact-field">
+                <label htmlFor="contact-email">Email</label>
+                <input
+                  id="contact-email"
+                  required
+                  type="email"
+                  maxLength={254}
+                  autoComplete="email"
+                  value={form.email}
+                  onChange={set("email")}
+                />
+              </div>
+            </div>
+
+            <div className="contact-field">
+              <label htmlFor="contact-subject">
+                Subject <span className="contact-optional">Optional</span>
+              </label>
+              <input id="contact-subject" maxLength={200} value={form.subject} onChange={set("subject")} />
+            </div>
+
+            <div className="contact-field">
+              <label htmlFor="contact-message">Message</label>
+              <textarea
+                id="contact-message"
+                required
+                minLength={10}
+                maxLength={5000}
+                rows={7}
+                value={form.message}
+                onChange={set("message")}
+              />
+              <span className="contact-count" aria-hidden="true">
+                {form.message.length} / 5000
+              </span>
+            </div>
+
+            {error && (
+              <p className="contact-error" role="alert">
+                {error}
+              </p>
+            )}
+
+            <button type="submit" className="contact-submit" disabled={submitting}>
+              {submitting ? "Sending…" : "Send message"}
+              {!submitting && <ArrowUpRight size={18} aria-hidden="true" />}
             </button>
           </form>
         )}

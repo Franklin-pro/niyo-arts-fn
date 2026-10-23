@@ -40,7 +40,7 @@ export function Cart({
       {!signedIn ? (
         <div className="empty-state">
           <h2>Sign in to view your cart.</h2>
-          <Link className="button-link" href="/login?returnTo=%2Fcart">Sign in <ArrowUpRight /></Link>
+          <Link className="button-link" href="/login?returnTo=%2Fcart">Sign in</Link>
         </div>
       ) : items.length ? (
         <div className="cart-layout">
@@ -81,7 +81,7 @@ export function Cart({
           <h2>Your cart is quiet.</h2>
           <p>Find a work that changes the room.</p>
           <Link className="button-link" href="/shop">
-            Explore the shop <ArrowUpRight />
+            Explore the shop 
           </Link>
         </div>
       )}

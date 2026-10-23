@@ -43,12 +43,13 @@ export type Artist = {
 };
 
 export function toProduct(product: ApiProduct): Product {
+  const artist = product.artist;
   return {
     slug: product.slug,
     title: product.title,
-    artist: product.artist.name,
-    artistSlug: product.artist.slug,
-    artistImage: product.artist.imageUrl,
+    artist: artist?.name || "Unknown artist",
+    artistSlug: artist?.slug || "",
+    artistImage: artist?.imageUrl || "",
     type: product.type,
     category: product.category,
     price: product.price,
