@@ -85,7 +85,7 @@ export interface ApiCart {
 }
 
 export interface ApiOrder {
-  // id?: string;
+  id?: string;
   reference: string;
   userId?: string;
   status: string;

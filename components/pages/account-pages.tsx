@@ -215,7 +215,7 @@ function GalleryArt({ title, text }: { title: string; text: string }) {
   const frame = "absolute border border-[#d4af37]/60 bg-zinc-800 p-2 shadow-[0_20px_30px_-12px_rgba(0,0,0,0.6)]";
   const mat = "h-full w-full bg-gradient-to-br";
   return (
-    <aside className="relative hidden flex-col justify-between overflow-hidden bg-zinc-900 p-12 lg:flex" aria-hidden="true">
+    <aside className="auth-art relative hidden flex-col justify-between overflow-hidden bg-zinc-900 p-12 lg:flex" aria-hidden="true">
       <Link href="/" className="relative z-10 text-lg font-semibold tracking-tight text-white">Niyo</Link>
 
       <div className="relative mx-auto my-8 h-[26rem] w-full max-w-md">
@@ -234,10 +234,10 @@ function GalleryArt({ title, text }: { title: string; text: string }) {
 
 function AuthLayout({ art, children }: { art: { title: string; text: string }; children: ReactNode }) {
   return (
-    <main className="grid min-h-screen bg-zinc-100 lg:grid-cols-[1.05fr_1fr]">
+    <main className="auth-page">
       <GalleryArt title={art.title} text={art.text} />
-      <div className="flex items-center justify-center px-4 py-10 sm:px-8">
-        <div className="w-full max-w-md">
+      <div className="auth-panel">
+        <div className="auth-card">
           <Link href="/" className="mb-6 inline-block text-lg font-semibold tracking-tight text-zinc-900 lg:hidden">Niyo</Link>
           <div className={`${card} p-7 sm:p-10`}>{children}</div>
         </div>
@@ -374,7 +374,7 @@ export function AccountPage({ mode }: { mode: Mode }) {
         <p className="mt-2 text-[15px] leading-relaxed text-zinc-500">
           {user ? `Signed in as ${user.email}.` : "Sign in to view your profile, cart and orders."}
         </p>
-        <div className="mt-8 space-y-3">
+        <div className="auth-stack mt-8 space-y-3">
           {user ? (
             <Link className={goldBtn} href="/account">Go to your account <ArrowUpRight className="h-4 w-4" /></Link>
           ) : (
@@ -456,9 +456,9 @@ export function AccountPage({ mode }: { mode: Mode }) {
       ) : (
         <>
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{copy.title}</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-zinc-500">{copy.sub}</p>
+          <p className="auth-sub mt-2 text-[15px] leading-relaxed text-zinc-500">{copy.sub}</p>
 
-          <form className="mt-8 space-y-5" onSubmit={onSubmit}>
+          <form className="auth-form mt-8" onSubmit={onSubmit}>
             {mode === "register" && (
               <Field id="auth-name" label="Full name" icon={<User />} placeholder="Jane Doe"
                 required minLength={2} maxLength={160} autoComplete="name"
@@ -506,20 +506,20 @@ export function AccountPage({ mode }: { mode: Mode }) {
 
             {mode === "login" && (
               <div className="-mt-1 text-right">
-                <Link href="/forgot-password" className={`rounded text-sm font-medium text-zinc-500 hover:text-zinc-900 ${focusRing}`}>
+                <Link href="/forgot-password" className={`auth-forgot rounded text-sm font-medium text-zinc-500 hover:text-zinc-900 ${focusRing}`}>
                   Forgot password?
                 </Link>
               </div>
             )}
 
-            {error && <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
+            {error && <p role="alert" className="auth-error rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
 
-            <button type="submit" className={goldBtn} disabled={submitting}>
+            <button type="submit" className={`${goldBtn} auth-submit`} disabled={submitting}>
               {submitting ? <><Loader2 className="h-4 w-4 motion-safe:animate-spin" /> Please wait…</> : <>{copy.cta} <ArrowUpRight className="h-4 w-4" /></>}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-zinc-500">
+          <p className="auth-switch mt-6 text-center text-sm text-zinc-500">
             {mode === "login" && <>New to Niyo? <Link className="font-semibold text-zinc-900 underline-offset-4 hover:underline" href="/register">Create an account</Link></>}
             {mode === "register" && <>Already have an account? <Link className="font-semibold text-zinc-900 underline-offset-4 hover:underline" href="/login">Sign in</Link></>}
             {(mode === "forgot-password" || mode === "reset-password") && <>Remembered it? <Link className="font-semibold text-zinc-900 underline-offset-4 hover:underline" href="/login">Back to sign in</Link></>}

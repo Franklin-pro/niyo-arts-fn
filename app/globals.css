@@ -725,7 +725,7 @@ em { font-style: italic; }
 .auth-forgot { align-self: flex-end; margin-top: -.25rem; font-size: .85rem; font-weight: 500; color: var(--ink-2); transition: color .2s; }
 .auth-forgot:hover, .auth-switch a:hover, .auth-link:hover { color: var(--accent); }
 
-.auth-submit { width: 100%; min-height: 3.5rem; margin-top: .5rem; font-size: .95rem; position: relative; overflow: hidden; }
+.auth-submit { width: 100%; min-height: 3.5rem; margin-top: .5rem; background-color: #d1c303; font-size: .95rem; position: relative; overflow: hidden; }
 .auth-submit svg { width: 1rem; height: 1rem; transition: transform .25s var(--ease); }
 .auth-submit:hover svg { transform: translate(2px, -2px); }
 .auth-submit:active:not(:disabled) { transform: scale(.985); }
@@ -1034,7 +1034,7 @@ em { font-style: italic; }
 
 /* ==========================================================================
    Admin — clean, professional redesign
-   Drop-in stylesheet for every .adm-* class used by AdminPage.
+   Styles for the feature-based admin routes and shared admin components.
    Replace your existing admin CSS with this file (or import it after it).
    ========================================================================== */
 
@@ -1903,4 +1903,50 @@ em { font-style: italic; }
   .contact-submit {
     transition: none;
   }
+}
+
+.adm-feature-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.adm-feature-form > label { display: grid; align-content: start; gap: .4rem; color: var(--ink-2); font-size: .86rem; font-weight: 600; }
+.adm-feature-form input,
+.adm-feature-form select,
+.adm-feature-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: .75rem .85rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+.adm-feature-form textarea { resize: vertical; }
+.adm-feature-form-wide { grid-column: 1 / -1; }
+.adm-feature-form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; padding-top: .5rem; }
+.adm-feature-form-actions button:disabled { opacity: .6; cursor: wait; }
+.adm-order-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+.adm-order-detail > section > h2 { margin-bottom: .8rem; font-family: var(--serif); font-size: 1.3rem; }
+.adm-order-summary { display: grid; gap: .75rem 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.adm-order-summary > div { min-width: 0; }
+.adm-order-summary dt { color: var(--muted); font-size: .8rem; font-weight: 600; }
+.adm-order-summary dd { margin: .15rem 0 0; overflow-wrap: anywhere; }
+.adm-order-summary > div:has(.adm-message-body) { grid-column: 1 / -1; }
+.adm-message-body { white-space: pre-wrap; }
+.adm-order-total { margin-top: 1rem; font-weight: 700; text-align: right; }
+.adm-notice { margin-bottom: 1rem; padding: .8rem 1rem; border-radius: var(--r-sm); background: #e3f4ec; color: #14724a; }
+@media (max-width: 700px) {
+  .adm-feature-form,
+  .adm-order-detail,
+  .adm-order-summary { grid-template-columns: minmax(0, 1fr); }
+  .adm-feature-form-wide,
+  .adm-feature-form-actions,
+  .adm-order-summary > div:has(.adm-message-body) { grid-column: auto; }
 }

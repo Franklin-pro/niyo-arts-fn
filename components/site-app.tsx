@@ -11,7 +11,6 @@ import { useResource, nav } from "./pages/shared";
 import { Listing, ProductPage, Collections, Artists } from "./pages/catalog-pages";
 import { Cart, Checkout } from "./pages/commerce-pages";
 import { AccountPage, OrderDetail } from "./pages/account-pages";
-import { AdminPage } from "./pages/admin-page";
 import { About, Contact, Generic } from "./pages/static-pages";
 import { HomePage } from "./pages/home-page";
 import PaymentResult from "./pages/payment-result";
@@ -161,8 +160,6 @@ export default function SiteApp({ path }: { path: string }) {
     body = <OrderDetail reference={route[1]} />;
   } else if (route[0] === "orders") {
     body = <AccountPage mode="account" />;
-  } else if (route[0] === "admin") {
-    body = <AdminPage section={route[1]} />;
   } else if (route[0] === "shipping") {
     body = <Generic title="Shipping & returns" eyebrow="Niyo / info" />;
   } else if (route[0] === "contact") {
