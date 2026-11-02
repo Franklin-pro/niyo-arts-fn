@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 import { useState } from "react";
 import { useAuth, useCart } from "@/components/site-provider";
 import { getHealth } from "@/services/api";
@@ -13,6 +14,7 @@ import { AccountPage, OrderDetail } from "./pages/account-pages";
 import { AdminPage } from "./pages/admin-page";
 import { About, Contact, Generic } from "./pages/static-pages";
 import { HomePage } from "./pages/home-page";
+import PaymentResult from "./pages/payment-result";
 
 function Header({ cart, open, onMenu, user, authLoading }: { cart: number; open: boolean; onMenu: () => void; user: ReturnType<typeof useAuth>["user"]; authLoading: boolean }) {
   return (
@@ -133,6 +135,12 @@ export default function SiteApp({ path }: { path: string }) {
       loading={cartLoading}
       orderPlaced={orderPlaced}
     />;
+  } else if (route[0] === "payment-result") {
+    body = (
+      <Suspense fallback={<p className="page-intro" role="status">Loading payment result…</p>}>
+        <PaymentResult />
+      </Suspense>
+    );
   } else if (route[0] === "collections") {
     body = <Collections slug={route[1]} />;
   } else if (route[0] === "artists") {

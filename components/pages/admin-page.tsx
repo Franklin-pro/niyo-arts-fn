@@ -27,7 +27,7 @@ export function toAdminRows(records: object[]): AdminRow[] {
 }
 
 const SECTIONS: { key: AdminSection; label: string; singular: string; icon: LucideIcon; blurb: string; editable: boolean }[] = [
-  { key: "products", label: "Products", singular: "product", icon: Package, blurb: "Works for sale", editable: true },
+  { key: "products", label: "Arts", singular: "product", icon: Package, blurb: "Works for sale", editable: true },
   { key: "artists", label: "Artists", singular: "artist", icon: Palette, blurb: "Artist profiles", editable: true },
   { key: "collections", label: "Collections", singular: "collection", icon: Layers, blurb: "Curated groups", editable: true },
   { key: "orders", label: "Orders", singular: "order", icon: ShoppingBag, blurb: "Customer orders", editable: false },
@@ -106,6 +106,9 @@ function fieldLabel(key: string) {
 function FieldValue({ name, row }: { name: string; row: AdminRow }) {
   const value = row[name];
   if (value === null || value === undefined || value === "") return <span className="adm-dim">—</span>;
+  if (name === "paymentUrl" && typeof value === "string") {
+    return <a href={value} target="_blank" rel="noreferrer">{value}</a>;
+  }
   if (name === "artist" && typeof value === "object" && !Array.isArray(value)) {
     const artist = value as Record<string, unknown>;
     const details = [artist.location, artist.medium].filter((item) => typeof item === "string" && item);
@@ -141,8 +144,16 @@ function FieldValue({ name, row }: { name: string; row: AdminRow }) {
 }
 
 function Details({ row }: { row: AdminRow }) {
-  const keys = Object.keys(row).filter((key) => !HIDDEN_FIELDS.has(key));
+  const keys = Object.keys(row).filter((key) =>
+    !HIDDEN_FIELDS.has(key) &&
+    !["shippingAddress", "items", "paymentAttempts", "userId", "user_id"].includes(key),
+  );
   const active = row.isActive;
+  const shippingAddress = asRecord(row.shippingAddress);
+  const items = Array.isArray(row.items) ? row.items.map(asRecord).filter((item): item is Record<string, unknown> => item !== null) : [];
+  const paymentAttempts = Array.isArray(row.paymentAttempts)
+    ? row.paymentAttempts.map(asRecord).filter((attempt): attempt is Record<string, unknown> => attempt !== null)
+    : [];
   return (
     <div className="adm-details">
       {typeof active === "boolean" && (
@@ -155,9 +166,50 @@ function Details({ row }: { row: AdminRow }) {
             <dd><FieldValue name={key} row={row} /></dd>
           </div>
         ))}
+        {shippingAddress && (
+          <div data-wide="true">
+            <dt>Shipping address</dt>
+            <dd>
+              {["address", "city", "postcode", "country"]
+                .map((key) => shippingAddress[key])
+                .filter((value): value is string => typeof value === "string" && Boolean(value))
+                .join(", ") || <span className="adm-dim">—</span>}
+            </dd>
+          </div>
+        )}
+        {row.items !== undefined && (
+          <div data-wide="true">
+            <dt>Items</dt>
+            <dd>
+              {items.length ? (
+                <ul className="adm-order-list">
+                  {items.map((item, index) => {
+                    const quantity = Number(item.quantity) || 0;
+                    const title = String(item.title || item.productSlug || "Artwork");
+                    const unitPrice = amount(item.unitPrice, row.currency);
+                    return (
+                      <li key={String(item.id || item.productSlug || index)}>
+                        <strong>{title}</strong>
+                        {typeof item.artistName === "string" && <span>{item.artistName}</span>}
+                        <span>{unitPrice ? `${unitPrice} × ${quantity}` : `Quantity: ${quantity}`}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : <span className="adm-dim">No items listed</span>}
+            </dd>
+          </div>
+        )}
+
       </dl>
     </div>
   );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 function describe(row: AdminRow, section: AdminSection) {
@@ -602,8 +654,8 @@ export function AdminPage({ section = "dashboard" }: { section?: string }) {
                                 void runAction(() => adminApi.orders.updateStatus(row.reference || "", event.target.value as "processing" | "shipped" | "delivered" | "cancelled"));
                               }}
                             >
-                              {!ORDER_STATUSES.includes(status as (typeof ORDER_STATUSES)[number]) && <option value={status} disabled>{status || "Update fulfillment"}</option>}
-                              {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
+                              {!ORDER_STATUSES.includes(status as (typeof ORDER_STATUSES)[number]) && <option value={status} className="hover:bg-amber-700" disabled>{status || "Update fulfillment"}</option>}
+                              {ORDER_STATUSES.map((s) => <option key={s} value={s} className="hover:bg-amber-700">{s[0].toUpperCase() + s.slice(1)}</option>)}
                             </select>
                           </>
                         )}

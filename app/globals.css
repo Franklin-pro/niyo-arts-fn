@@ -1417,6 +1417,11 @@ em { font-style: italic; }
 .adm-dim { color: var(--ink-3); }
 .adm-artist-details { display: grid; gap: 1px; }
 .adm-artist-details span { color: var(--ink-2); font-size: 13px; }
+.adm-order-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.adm-order-list li { display: grid; justify-items: start; gap: 3px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--bg); }
+.adm-order-list li > span { color: var(--ink-2); font-size: 13px; }
+.adm-order-list a { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.adm-order-list a svg { width: 14px; height: 14px; }
 .adm-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .adm-image-link { display: inline-grid; gap: 6px; }
 .adm-image-link img {

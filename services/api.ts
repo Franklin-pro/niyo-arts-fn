@@ -85,17 +85,44 @@ export interface ApiCart {
 }
 
 export interface ApiOrder {
+  // id?: string;
   reference: string;
+  userId?: string;
   status: string;
   paymentStatus: string;
   paymentMethod: string;
   paymentProvider?: string;
   total: number;
   currency: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  shippingAddress?: { address?: string; city?: string; country?: string; postcode?: string };
+  paymentPhone?: string;
+  paymentUrl?: string;
   email?: string;
   confirmationEmail?: "sent" | "failed";
   createdAt: string;
-  items?: { productSlug: string; quantity: number; product?: ApiProduct }[];
+  updatedAt?: string;
+  items?: {
+    id?: string;
+    productSlug: string;
+    title?: string;
+    artistName?: string;
+    imageUrl?: string;
+    quantity: number;
+    unitPrice?: number | string;
+    product?: ApiProduct;
+  }[];
+  paymentAttempts?: {
+    id: string;
+    reference: string;
+    paymentUrl?: string;
+    status: string;
+    transactionId?: string | null;
+    createdAt: string;
+    updatedAt?: string;
+  }[];
 }
 
 function getApiBaseUrl() {
