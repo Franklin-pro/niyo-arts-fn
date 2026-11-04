@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { useState } from "react";
+import { Alert, Badge, Button, Drawer, Menu } from "antd";
+import {
+  HeartOutlined, MenuOutlined, SearchOutlined, ShoppingOutlined, UserOutlined,
+} from "@ant-design/icons";
 import { useAuth, useCart } from "@/components/site-provider";
 import { getHealth } from "@/services/api";
-import { ArrowUpRight, Menu, Search, ShoppingBag, UserRound, Heart, X } from "lucide-react";
 import { useResource, nav } from "./pages/shared";
 import { Listing, ProductPage, Collections, Artists } from "./pages/catalog-pages";
 import { Cart, Checkout } from "./pages/commerce-pages";
@@ -14,34 +18,35 @@ import { AccountPage, OrderDetail } from "./pages/account-pages";
 import { About, Contact, Generic } from "./pages/static-pages";
 import { HomePage } from "./pages/home-page";
 import PaymentResult from "./pages/payment-result";
+import { FoundationPage } from "./pages/foundation";
+import { CafePage } from "./pages/cafe";
 
 function Header({ cart, open, onMenu, user, authLoading }: { cart: number; open: boolean; onMenu: () => void; user: ReturnType<typeof useAuth>["user"]; authLoading: boolean }) {
+  const navItems = nav.map(([label, href]) => ({ key: href, label: <Link href={href}>{label}</Link> }));
   return (
     <header className="site-header">
       <Link className="wordmark" href="/" aria-label="Niyo Arts home">
         <Image className="brand-logo" src="/niyo-art-white.png" alt="Niyo Arts Gallery" width={250} height={143} priority />
       </Link>
-      <nav className="main-nav" aria-label="Main">
-        {nav.map(([label, href]) => (
-          <Link key={href} href={href}>{label}</Link>
-        ))}
-      </nav>
+      <Menu className="main-nav" mode="horizontal" selectable={false} items={navItems} />
       <div className="header-actions">
-        <Link href="/search" aria-label="Search"><Search /></Link>
+        <Button href="/search" type="text" aria-label="Search" icon={<SearchOutlined />} />
         {user ? (
-          <Link href="/account" aria-label="Account"><UserRound /></Link>
+          <Button href="/account" type="text" aria-label="Account" icon={<UserOutlined />} />
         ) : !authLoading ? (
           <Link className="header-login" href="/login">Login</Link>
         ) : null}
-        <Link href="/account/wishlist" aria-label="Wishlist"><Heart /></Link>
-        <Link href="/cart" aria-label="Cart">
-          <ShoppingBag />
-          <small>{cart}</small>
-        </Link>
-        <button className="menu-toggle" onClick={onMenu} aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open}>
-          {open ? <X /> : <Menu />}
-        </button>
+        {/* <Button href="/account/wishlist" type="text" aria-label="Wishlist" icon={<HeartOutlined />} /> */}
+        {/* <Badge count={cart} size="small" offset={[-3, 5]}>
+          <Button href="/cart" type="text" aria-label={`Cart, ${cart} items`} icon={<ShoppingOutlined />} />
+        </Badge> */}
+        {/* <Button className="menu-toggle" type="text" onClick={onMenu}
+          aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open}
+          icon={<MenuOutlined />} /> */}
       </div>
+      <Drawer title="Explore Niyo Arts" placement="right" open={open} onClose={onMenu} className="store-nav-drawer">
+        <Menu mode="vertical" selectable={false} items={navItems} onClick={onMenu} />
+      </Drawer>
     </header>
   );
 }
@@ -53,7 +58,7 @@ function Footer() {
         <Link className="wordmark footer-wordmark" href="/" aria-label="Niyo Arts home">
           <Image className="brand-logo footer-brand-logo" src="/niyo-arts-logo.png" alt="Niyo Arts Gallery" width={250} height={143} />
         </Link>
-        <p>Art for the way you live.</p>
+        <p>Art Center and Café · Kigali, Rwanda</p>
       </div>
       <div className="footer-links">
         <div>
@@ -76,7 +81,7 @@ function Footer() {
       </div>
       <div className="footer-bottom">
         <span>&copy; {new Date().getFullYear()} Niyo Arts all rights reserved</span>
-        <span>Rwanda · Kigali · Everywhere</span>
+        <span>KG572 St, No. 25, Kacyiru · +250 788 932 111</span>
         <span>USD / EN</span>
       </div>
     </footer>
@@ -84,6 +89,7 @@ function Footer() {
 }
 
 export default function SiteApp({ path }: { path: string }) {
+  const router = useRouter();
   const [menu, setMenu] = useState(false);
   const {
     items: cart,
@@ -99,6 +105,10 @@ export default function SiteApp({ path }: { path: string }) {
     clearError,
   } = useCart();
   const { user, authLoading } = useAuth();
+  const addAndCheckout = async (product: Parameters<typeof add>[0]) => {
+    await add(product);
+    router.push("/checkout");
+  };
   const route = path.replace(/^\//, "").split("/");
   const isHome = path === "/" || !path;
   const showStorefrontChrome = route[0] !== "admin";
@@ -107,13 +117,13 @@ export default function SiteApp({ path }: { path: string }) {
   let body: React.ReactNode;
 
   if (isHome) {
-    body = <HomePage onAdd={add} signedIn={Boolean(user)} adding={cartLoading} />;
+    body = <HomePage onAdd={addAndCheckout} adding={cartLoading} />;
   } else if (route[0] === "shop" && route[1]) {
-    body = <ProductPage slug={route[1]} onAdd={add} signedIn={Boolean(user)} adding={cartLoading} />;
+    body = <ProductPage slug={route[1]} onAdd={addAndCheckout} adding={cartLoading} />;
   } else if (route[0] === "shop" || route[0] === "gallery") {
-    body = <Listing mode={route[0]} onAdd={add} signedIn={Boolean(user)} adding={cartLoading} />;
+    body = <Listing mode={route[0]} onAdd={addAndCheckout} adding={cartLoading} />;
   } else if (route[0] === "search") {
-    body = <Listing mode="search" onAdd={add} signedIn={Boolean(user)} adding={cartLoading} />;
+    body = <Listing mode="search" onAdd={addAndCheckout} adding={cartLoading} />;
   } else if (route[0] === "cart") {
     body = <Cart
       items={cart}
@@ -121,9 +131,8 @@ export default function SiteApp({ path }: { path: string }) {
       clear={clear}
       subtotal={cartSubtotal}
       currency={cartCurrency}
-      loading={cartLoading}
+      loading={cartLoading || authLoading}
       error={cartError}
-      signedIn={Boolean(user)}
     />;
   } else if (route[0] === "checkout") {
     body = <Checkout
@@ -164,7 +173,14 @@ export default function SiteApp({ path }: { path: string }) {
     body = <Generic title="Shipping & returns" eyebrow="Niyo / info" />;
   } else if (route[0] === "contact") {
     body = <Contact />;
-  } else {
+  }
+  else if (route[0] === "foundation") {
+    body = <FoundationPage />;
+  }  
+  else if (route[0] === "cafe") {
+    body = <CafePage />;
+  }
+  else {
     body = <Generic title="Page not found" eyebrow="Niyo / 404" />;
   }
 
@@ -173,21 +189,16 @@ export default function SiteApp({ path }: { path: string }) {
       {showStorefrontChrome && (
         <>
           <Header cart={cart.length} open={menu} onMenu={() => setMenu(!menu)} user={user} authLoading={authLoading} />
-          {healthError && <p role="alert" className="field-error">{healthError}</p>}
+          {healthError && <Alert type="error" showIcon title="Service unavailable" description={healthError} />}
           {cartError && (
-            <p role="alert" className="field-error">
-              {cartError} {!user && <Link href="/login?returnTo=%2Fcart">Sign in</Link>}
-              <button type="button" aria-label="Dismiss cart error" onClick={clearError}><X /></button>
-            </p>
-          )}
-          {menu && (
-            <div className="mobile-menu">
-              {nav.map(([l, h]) => (
-                <Link onClick={() => setMenu(false)} key={h} href={h}>
-                  {l}
-                </Link>
-              ))}
-            </div>
+            <Alert
+              type="error"
+              showIcon
+              closable
+              onClose={clearError}
+              title={cartError}
+              description={!user && <Link href="/login?returnTo=%2Fcart">Sign in to restore your cart</Link>}
+            />
           )}
         </>
       )}

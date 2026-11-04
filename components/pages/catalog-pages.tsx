@@ -2,18 +2,23 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowUpRight, ChevronDown, Heart, Search, SlidersHorizontal } from "lucide-react";
+import { Alert, App, Button, Empty, Input, Pagination, Radio, Select, Spin } from "antd";
+import {
+  ArrowLeftOutlined, ArrowUpOutlined, ControlOutlined, DownOutlined, HeartOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { getArtist, getArtists, getCollection, getCollections, getProduct, getProducts } from "@/services/api";
 import type { ApiArtist, ApiCollection, ProductQuery } from "@/services/api";
 import type { Product } from "./shared";
 import { formatPrice, toArtist, toCollection, toProduct, useResource } from "./shared";
 
-export function ProductCard({ p, onAdd, signedIn, adding, returnTo }: { p: Product; onAdd: (p: Product) => Promise<void>; signedIn: boolean; adding: boolean; returnTo: string }) {
+export function ProductCard({ p, onAdd, adding }: { p: Product; onAdd: (p: Product) => Promise<void>; adding: boolean }) {
   const [liked, setLiked] = useState(false);
+  const { message } = App.useApp();
   return (
     <article className="art-card">
-      <Link href={`/shop/${p.slug}`}>
-        <div className="art-image">
+      <div className="art-image">
+        <Link href={`/shop/${p.slug}`}>
           <img className="art-img-main" src={p.image} alt={p.title} loading="lazy" decoding="async" />
           {p.artistImage && (
             <img
@@ -29,18 +34,17 @@ export function ProductCard({ p, onAdd, signedIn, adding, returnTo }: { p: Produ
             <small>Artwork by</small>
             <strong>{p.artist}</strong>
           </span>
-          <button
-            className={liked ? "liked" : ""}
-            onClick={(e) => {
-              e.preventDefault();
-              setLiked(!liked);
-            }}
-            aria-label="Add to wishlist"
-            aria-pressed={liked}
-          >
-            <Heart />
-          </button>
-        </div>
+        </Link>
+        <Button
+          type="text"
+          className={liked ? "liked art-like-button" : "art-like-button"}
+          onClick={() => setLiked(!liked)}
+          aria-label={liked ? "Remove from wishlist" : "Add to wishlist"}
+          aria-pressed={liked}
+          icon={<HeartOutlined />}
+        />
+      </div>
+      <Link href={`/shop/${p.slug}`}>
         <p className="art-type">{p.type}</p>
         <div className="art-meta">
           <div>
@@ -50,19 +54,15 @@ export function ProductCard({ p, onAdd, signedIn, adding, returnTo }: { p: Produ
           <strong>{formatPrice(p.price, p.currency)}</strong>
         </div>
       </Link>
-      {signedIn ? (
-        <button className="quick-add" disabled={adding} onClick={() => { void onAdd(p).catch(() => undefined); }}>
-          {adding ? "Adding…" : "Add to cart"} <ArrowUpRight />
-        </button>
-      ) : (
-        <Link className="quick-add" href={`/login?returnTo=${encodeURIComponent(returnTo)}`}>
-          Sign in to add <ArrowUpRight />
-        </Link>
-      )}
+      <Button className="quick-add" type="primary" loading={adding}
+        onClick={() => { void onAdd(p).catch((reason: unknown) => message.error(reason instanceof Error ? reason.message : "Unable to add this work to your cart.")); }}
+        icon={!adding ? <ArrowUpOutlined /> : undefined}>
+        {adding ? "Adding…" : "Add & checkout"}
+      </Button>
     </article>
   );
 }
-export function Listing({ mode = "shop", onAdd, signedIn, adding }: { mode?: string; onAdd: (p: Product) => Promise<void>; signedIn: boolean; adding: boolean }) {
+export function Listing({ mode = "shop", onAdd, adding }: { mode?: string; onAdd: (p: Product) => Promise<void>; adding: boolean }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [sort, setSort] = useState("Featured");
@@ -70,7 +70,6 @@ export function Listing({ mode = "shop", onAdd, signedIn, adding }: { mode?: str
   const pageSize = 8;
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
-  const [pageCount, setPageCount] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -90,7 +89,6 @@ export function Listing({ mode = "shop", onAdd, signedIn, adding }: { mode?: str
         if (!current) return;
         setProducts(result.data.map(toProduct));
         setTotal(result.pagination.total);
-        setPageCount(Math.max(1, result.pagination.pages));
       })
       .catch((reason: unknown) => {
         if (current) setError(reason instanceof Error ? reason.message : "Unable to load artwork.");
@@ -112,60 +110,43 @@ export function Listing({ mode = "shop", onAdd, signedIn, adding }: { mode?: str
       </section>
       <section className="listing">
         <div className="toolbar">
-          <label className="search-field">
-            <Search />
-            <input maxLength={120} value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search works or artists" />
-          </label>
+          <Input className="search-field antd-catalog-search" allowClear maxLength={120} prefix={<SearchOutlined />}
+            value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search works or artists" />
           <div className="filter-row">
-            {["All", "Abstract", "Painting", "Digital", "Photography"].map((x) => (
-              <button className={category === x ? "active" : ""} onClick={() => { setCategory(x); setPage(1); }} key={x}>
-                {x}
-              </button>
-            ))}
-            <select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} aria-label="Sort artwork">
-              <option>Featured</option>
-              <option>Price: low to high</option>
-              <option>Price: high to low</option>
-            </select>
+            <Radio.Group value={category} optionType="button" buttonStyle="solid" options={["All", "Abstract", "Painting", "Digital", "Photography"].map((value) => ({ label: value, value }))}
+              onChange={(event) => { setCategory(event.target.value); setPage(1); }} />
+            <Select aria-label="Sort artwork" value={sort} onChange={(value) => { setSort(value); setPage(1); }}
+              options={["Featured", "Price: low to high", "Price: high to low"].map((value) => ({ label: value, value }))} />
           </div>
         </div>
-        {error && <p className="field-error" role="alert">{error}</p>}
+        {error && <Alert showIcon type="error" title={error} />}
         {loading ? (
-          <p role="status">Loading artwork…</p>
+          <div role="status"><Spin /> Loading artwork…</div>
         ) : products.length ? (
           <>
             <div className={`art-grid ${mode === "gallery" ? "gallery-masonry" : ""}`}>
               {products.map((p) => (
-                <ProductCard key={p.slug} p={p} onAdd={onAdd} signedIn={signedIn} adding={adding} returnTo={`/${mode}`} />
+                <ProductCard key={p.slug} p={p} onAdd={onAdd} adding={adding} />
               ))}
             </div>
-            <nav className="art-pagination" aria-label="Artwork pages">
+            <div className="art-pagination" aria-label="Artwork pages">
               <p>
                 Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} works
               </p>
-              <div>
-                <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1} aria-label="Previous page">
-                  Previous
-                </button>
-                <span aria-current="page">Page {page} of {pageCount}</span>
-                <button type="button" onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page === pageCount} aria-label="Next page">
-                  Next
-                </button>
-              </div>
-            </nav>
+              <Pagination current={page} total={total} pageSize={pageSize} showSizeChanger={false} onChange={setPage} />
+            </div>
           </>
         ) : !error ? (
           <div className="empty-state">
-            <SlidersHorizontal />
-            <h2>No works found.</h2>
-            <p>Try another search or remove a filter.</p>
+            <Empty image={<ControlOutlined />} description="No works found. Try another search or remove a filter." />
           </div>
         ) : null}
       </section>
     </>
   );
 }
-export function ProductPage({ slug, onAdd, signedIn, adding }: { slug: string; onAdd: (p: Product) => Promise<void>; signedIn: boolean; adding: boolean }) {
+export function ProductPage({ slug, onAdd, adding }: { slug: string; onAdd: (p: Product) => Promise<void>; adding: boolean }) {
+  const { message } = App.useApp();
   const { data: p, error, loading } = useResource(
     () => getProduct(slug).then((result) => toProduct(result.data)),
     [slug],
@@ -177,13 +158,13 @@ export function ProductPage({ slug, onAdd, signedIn, adding }: { slug: string; o
         <p className="section-kicker">Niyo Arts / Artwork</p>
         <h1>Artwork unavailable.</h1>
         <p role="alert">{error || "This artwork could not be found."}</p>
-        <Link className="text-link" href="/shop">Back to the shop <ArrowUpRight /></Link>
+        <Link className="text-link" href="/shop">Back to the shop <ArrowUpOutlined /></Link>
       </section>
     );
   return (
     <section className="product-page">
       <Link className="back-link" href="/shop">
-        <ArrowLeft /> Back to shop
+        <ArrowLeftOutlined /> Back to shop
       </Link>
       <div className="product-layout">
         <div className="product-gallery">
@@ -204,22 +185,18 @@ export function ProductPage({ slug, onAdd, signedIn, adding }: { slug: string; o
           <p className="product-description">
             {p.description}
           </p>
-          {signedIn ? (
-            <button className="button-link add-button" disabled={adding} onClick={() => { void onAdd(p).catch(() => undefined); }}>
-              {adding ? "Adding…" : "Add to cart"} <ArrowUpRight />
-            </button>
-          ) : (
-            <Link className="button-link add-button" href={`/login?returnTo=${encodeURIComponent(`/shop/${slug}`)}`}>
-              Sign in to add to cart <ArrowUpRight />
-            </Link>
-          )}
+          <Button className="button-link add-button" type="primary" loading={adding}
+            onClick={() => { void onAdd(p).catch((reason: unknown) => message.error(reason instanceof Error ? reason.message : "Unable to add this work to your cart.")); }}
+            icon={!adding ? <ArrowUpOutlined /> : undefined}>
+            {adding ? "Adding…" : "Add & checkout"}
+          </Button>
           <div className="accordions">
             <details open>
-              <summary>Details <ChevronDown /></summary>
+              <summary>Details <DownOutlined /></summary>
               <p>{p.description}</p>
             </details>
             <details>
-              <summary>Delivery & returns <ChevronDown /></summary>
+              <summary>Delivery & returns <DownOutlined /></summary>
               <p>Carefully packed and dispatched within 3–5 business days.</p>
             </details>
           </div>
@@ -267,9 +244,7 @@ export function Collections({ slug }: { slug?: string }) {
                     </Link>
                   ))}
                 </div>
-                <Link className="text-link" href={`/collections/${c.slug}`}>
-                  Shop the collection <ArrowUpRight />
-                </Link>
+                <Link className="text-link" href={`/collections/${c.slug}`}>Shop the collection <ArrowUpOutlined /></Link>
               </div>
             </article>
         ))}

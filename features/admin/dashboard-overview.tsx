@@ -2,19 +2,19 @@
 
 import Link from "next/link";
 import { useAuth } from "@/components/site-provider";
-import type { CSSProperties } from "react";
-import { AdminFeedback, AdminPageHeader, useAdminResource } from "@/features/admin/admin-shared";
+import { Alert, Card, Col, Empty, Listy, Row, Skeleton, Statistic, Typography } from "antd";
+import { AdminPageHeader, useAdminResource } from "@/features/admin/admin-shared";
 import { StatusChip } from "@/components/admin/status-chip";
 import { toAdminRows, type AdminRecord } from "@/lib/admin-utils";
 import { adminApi } from "@/services/api";
-import { ArrowUpRight, Layers, Mail, Package, Palette, ShoppingBag } from "lucide-react";
+import { AppstoreOutlined, ArrowRightOutlined, MailOutlined, ShoppingOutlined, UserOutlined } from "@ant-design/icons";
 
 const sections = [
-  { key: "products", label: "Arts", href: "/admin/products", icon: Package, hint: "Works for sale" },
-  { key: "artists", label: "Artists", href: "/admin/artists", icon: Palette, hint: "Artist profiles" },
-  { key: "collections", label: "Collections", href: "/admin/collections", icon: Layers, hint: "Curated groups" },
-  { key: "orders", label: "Orders", href: "/admin/orders", icon: ShoppingBag, hint: "Customer orders" },
-  { key: "contacts", label: "Messages", href: "/admin/contacts", icon: Mail, hint: "Contact inbox" },
+  { key: "products", label: "Arts", href: "/admin/products", icon: <AppstoreOutlined />, hint: "Works for sale" },
+  { key: "artists", label: "Artists", href: "/admin/artists", icon: <UserOutlined />, hint: "Artist profiles" },
+  { key: "collections", label: "Collections", href: "/admin/collections", icon: <AppstoreOutlined />, hint: "Curated groups" },
+  { key: "orders", label: "Orders", href: "/admin/orders", icon: <ShoppingOutlined />, hint: "Customer orders" },
+  { key: "contacts", label: "Messages", href: "/admin/contacts", icon: <MailOutlined />, hint: "Contact inbox" },
 ] as const;
 
 type OverviewData = Record<(typeof sections)[number]["key"], AdminRecord[]>;
@@ -40,38 +40,51 @@ export function DashboardOverview() {
 
   return <>
     <AdminPageHeader title={`${greeting}, ${firstName}`} description="Here’s what’s happening in the gallery today." />
-    <AdminFeedback error={error} />
-    <div className="adm-stats" aria-busy={loading}>
-      {sections.map(({ key, label, href, icon: Icon, hint }, index) => {
+    {error && <Alert showIcon type="error" title={error} />}
+    <Row gutter={[16, 16]} className="adm-stat-grid" aria-busy={loading}>
+      {sections.map(({ key, label, href, icon, hint }) => {
         const count = data?.[key].length ?? 0;
         const subtitle = key === "orders" ? `${openOrders} open` : key === "contacts" ? `${newMessages} new` : hint;
-        return <Link className="adm-stat" href={href} key={key} style={{ "--i": Math.min(index, 12) } as CSSProperties}>
-          <span className="adm-stat-icon"><Icon /></span><strong>{loading ? "—" : count}</strong>
-          <span className="adm-stat-label">{label}</span><small>{subtitle}</small><ArrowUpRight className="adm-stat-arrow" />
-        </Link>;
+        return <Col xs={12} md={8} xl={key === "orders" || key === "contacts" ? 4 : 4} key={key}>
+          <Link className="adm-stat-link" href={href}>
+            <Card hoverable className="adm-antd-stat">
+              <Statistic title={label} value={loading ? 0 : count} prefix={icon} suffix={<Typography.Text type="secondary">{subtitle}</Typography.Text>} />
+            </Card>
+          </Link>
+        </Col>;
       })}
-    </div>
-    <div className="adm-panels">
+    </Row>
+    <Row gutter={[16, 16]} className="adm-dashboard-panels">
       {(["orders", "contacts"] as const).map((key) => {
         const label = key === "orders" ? "Latest orders" : "Latest messages";
         const href = `/admin/${key}`;
         const latest = (data?.[key] ?? []).slice(0, 5);
-        return <section className="adm-panel" key={key}>
-          <header><h2>{label}</h2><Link href={href} className="adm-link">View all <ArrowUpRight /></Link></header>
-          {loading ? <p role="status">Loading…</p> : latest.length ? <ul>
-            {latest.map((record, index) => {
-              const recordHref = key === "orders"
-                ? `/admin/orders/${encodeURIComponent(String(record.reference || ""))}`
-                : `/admin/contacts/${encodeURIComponent(String(record.id || ""))}`;
-              return <li key={String(record.reference || record.id || index)}>
-                <div><strong><Link href={recordHref}>{String(record.reference || record.name || record.email || "Record")}</Link></strong>
-                  <small>{key === "orders" ? [record.customerName, record.paymentStatus].filter(Boolean).join(" · ") : [record.email, record.subject].filter(Boolean).join(" · ")}</small></div>
-                <StatusChip value={String(key === "orders" ? record.fulfillmentStatus || record.status || "" : record.status || "new")} />
-              </li>;
-            })}
-          </ul> : <p className="adm-empty-inline">No {key} yet.</p>}
-        </section>;
+        return <Col xs={24} xl={12} key={key}>
+          <Card title={label} extra={<Link href={href}>View all <ArrowRightOutlined /></Link>} className="adm-antd-card">
+            {loading ? <Skeleton active /> : latest.length ? <Listy
+              items={latest}
+              virtual={false}
+              rowKey={(record) => String(record.reference || record.id)}
+              itemRender={(record) => {
+                const recordHref = key === "orders"
+                  ? `/admin/orders/${encodeURIComponent(String(record.reference || ""))}`
+                  : `/admin/contacts/${encodeURIComponent(String(record.id || ""))}`;
+                return <div className="adm-listy-row">
+                  <div>
+                    <Typography.Paragraph className="adm-listy-title">
+                      <Link href={recordHref}>{String(record.reference || record.name || record.email || "Record")}</Link>
+                    </Typography.Paragraph>
+                    <Typography.Text type="secondary">
+                      {key === "orders" ? [record.customerName, record.paymentStatus].filter(Boolean).join(" · ") : [record.email, record.subject].filter(Boolean).join(" · ")}
+                    </Typography.Text>
+                  </div>
+                  <StatusChip value={String(key === "orders" ? record.fulfillmentStatus || record.status || "" : record.status || "new")} />
+                </div>;
+              }}
+            /> : <Empty description={`No ${key} yet`} />}
+          </Card>
+        </Col>;
       })}
-    </div>
+    </Row>
   </>;
 }

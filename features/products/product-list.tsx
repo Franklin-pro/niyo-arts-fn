@@ -4,7 +4,8 @@ import { useAdminResource, AdminList } from "@/features/admin/admin-shared";
 import { toAdminRows } from "@/lib/admin-utils";
 import { adminApi } from "@/services/api";
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Button, Popconfirm } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 
 export function ProductList() {
   const [refresh, setRefresh] = useState(0);
@@ -40,8 +41,11 @@ export function ProductList() {
       summary={(row) => String(row.title || row.slug || "Untitled product")}
       subtitle={(row) => [row.category || row.type, row.price !== undefined ? `${row.currency || "USD"} ${row.price}` : ""].filter(Boolean).join(" · ")}
       image={(row) => String(row.imageUrl || "")}
-      controls={(row) => <button type="button" className="adm-icon-btn danger" disabled={busySlug === String(row.slug || "")}
-        aria-label={`Delete ${String(row.title || row.slug || "product")}`} onClick={() => void remove(String(row.slug || ""))}><Trash2 /></button>}
+      controls={(row) => <Popconfirm title="Delete or deactivate this product?" description={String(row.title || row.slug || "")}
+        onConfirm={() => void remove(String(row.slug || ""))} okText="Continue" okButtonProps={{ danger: true }}>
+        <Button type="text" danger icon={<DeleteOutlined />} loading={busySlug === String(row.slug || "")}
+          aria-label={`Delete ${String(row.title || row.slug || "product")}`} />
+      </Popconfirm>}
     />
   );
 }

@@ -2,23 +2,25 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { App, Button, Tag } from "antd";
 import {
-  Check,
-  X,
-  Minus,
-  Clock,
-  Copy,
-  RefreshCw,
-  ArrowRight,
-  Home,
-  ReceiptText,
-} from "lucide-react";
+  ArrowRightOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
+  CloseOutlined,
+  CopyOutlined,
+  HomeOutlined,
+  MinusOutlined,
+  ProfileOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 
 const GOLD = "#d4af37";
+type PaymentStatus = "success" | "cancelled" | "failed" | "pending";
 
 // Normalise whatever the gateway sends back into four states
-function normalizeStatus(raw:any) {
-  const s = (raw || "").toLowerCase();
+function normalizeStatus(raw: string | null): PaymentStatus {
+  const s = (raw ?? "").toLowerCase();
   if (["successful", "success", "completed", "paid"].includes(s)) return "success";
   if (["cancelled", "canceled"].includes(s)) return "cancelled";
   if (["failed", "error", "declined"].includes(s)) return "failed";
@@ -27,7 +29,7 @@ function normalizeStatus(raw:any) {
 
 const STATES = {
   success: {
-    Icon: Check,
+    Icon: CheckOutlined,
     label: "Paid",
     title: "Payment received",
     message:
@@ -38,7 +40,7 @@ const STATES = {
     dot: "bg-emerald-500",
   },
   cancelled: {
-    Icon: Minus,
+    Icon: MinusOutlined,
     label: "Cancelled",
     title: "Payment cancelled",
     message:
@@ -49,7 +51,7 @@ const STATES = {
     dot: "bg-amber-500",
   },
   failed: {
-    Icon: X,
+    Icon: CloseOutlined,
     label: "Failed",
     title: "Payment didn't go through",
     message:
@@ -60,7 +62,7 @@ const STATES = {
     dot: "bg-rose-500",
   },
   pending: {
-    Icon: Clock,
+    Icon: ClockCircleOutlined,
     label: "Pending",
     title: "Confirming your payment",
     message:
@@ -70,9 +72,10 @@ const STATES = {
     soft: "bg-sky-50 text-sky-700",
     dot: "bg-sky-500",
   },
-};
+} satisfies Record<PaymentStatus, { Icon: typeof CheckOutlined; label: string; title: string; message: string; ring: string; solid: string; soft: string; dot: string }>;
 
 function PaymentResultInner() {
+  const { message } = App.useApp();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -85,7 +88,7 @@ function PaymentResultInner() {
   const orderReference = searchParams.get("reference") || txRef;
 
   // NY-0C12EAC9BD-B954DB205DCD -> NY-0C12EAC9BD
-  const baseOrderReference:any = txRef
+  const baseOrderReference = txRef
     ? txRef.split("-").slice(0, 2).join("-")
     : orderReference;
 
@@ -93,12 +96,17 @@ function PaymentResultInner() {
   const Icon = s.Icon;
 
   const copyReference = async () => {
+    if (!baseOrderReference) {
+      message.error("No order reference is available to copy.");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(baseOrderReference);
       setCopied(true);
+      message.success("Order reference copied.");
       setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard unavailable, ignore */
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : "Unable to copy the order reference.");
     }
   };
 
@@ -125,16 +133,13 @@ function PaymentResultInner() {
               <span
                 className={`relative flex h-20 w-20 items-center justify-center rounded-full ring-8 ${s.ring} ${s.solid}`}
               >
-                <Icon className="h-9 w-9 text-white" strokeWidth={2.5} />
+                <Icon className="h-9 w-9 text-white" />
               </span>
             </div>
 
-            <span
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${s.soft}`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+            <Tag color={status === "success" ? "success" : status === "failed" ? "error" : status === "cancelled" ? "warning" : "processing"}>
               {s.label}
-            </span>
+            </Tag>
 
             <h1 className="mt-4 text-2xl font-semibold tracking-tight text-zinc-900 sm:text-[1.75rem]">
               {s.title}
@@ -161,83 +166,66 @@ function PaymentResultInner() {
                     {baseOrderReference}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={copyReference}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#d4af37]"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5" />
-                      Copy
-                    </>
-                  )}
-                </button>
+                <Button size="small" className="shrink-0" onClick={copyReference} icon={copied ? <CheckOutlined /> : <CopyOutlined />}>
+                  {copied ? "Copied" : "Copy"}
+                </Button>
               </div>
             )}
 
             <div className="space-y-3">
               {status === "pending" && (
-                <button
-                  type="button"
+                <Button
+                  type="primary"
                   onClick={refresh}
-                  disabled={refreshing}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-zinc-900"
+                  loading={refreshing}
+                  block
+                  icon={!refreshing ? <ReloadOutlined /> : undefined}
                 >
-                  <RefreshCw
-                    className={`h-4 w-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
-                  />
                   {refreshing ? "Checking…" : "Check payment status"}
-                </button>
+                </Button>
               )}
 
               {(status === "failed" || status === "cancelled") && (
-                <button
-                  type="button"
+                <Button
+                  type="primary"
                   onClick={() => router.push("/checkout")}
-                  style={{ backgroundColor: GOLD }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-zinc-900 transition hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#d4af37]"
+                  block
+                  style={{ backgroundColor: GOLD, borderColor: GOLD }}
                 >
                   Return to checkout
-                </button>
+                </Button>
               )}
 
               {status === "success" && (
-                <button
-                  type="button"
+                <Button
+                  type="primary"
                   onClick={() => router.push("/orders")}
-                  style={{ backgroundColor: GOLD }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-zinc-900 transition hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#d4af37]"
+                  block
+                  style={{ backgroundColor: GOLD, borderColor: GOLD }}
                 >
-                  <ReceiptText className="h-4 w-4" />
+                  <ProfileOutlined />
                   View my orders
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                  <ArrowRightOutlined />
+                </Button>
               )}
 
               {status !== "success" && (
-                <button
-                  type="button"
+                <Button
                   onClick={() => router.push("/orders")}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#d4af37]"
+                  block
                 >
                   View my orders
-                </button>
+                </Button>
               )}
 
-              <button
-                type="button"
+              <Button
+                type="text"
                 onClick={() => router.push("/")}
-                className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-zinc-500 transition hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]"
+                block
+                icon={<HomeOutlined />}
               >
-                <Home className="h-4 w-4" />
                 Back to home
-              </button>
+              </Button>
             </div>
           </div>
         </div>

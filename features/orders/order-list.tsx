@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Select } from "antd";
 import { AdminFeedback, AdminList, useAdminResource } from "@/features/admin/admin-shared";
 import { StatusChip } from "@/components/admin/status-chip";
 import { toAdminRows } from "@/lib/admin-utils";
@@ -39,11 +40,15 @@ export function OrderList() {
         const status = String(row.fulfillmentStatus || row.status || "");
         return <>
           <StatusChip value={status} />
-          <select aria-label={`Update status for order ${String(row.reference || "")}`} value={status} disabled={busyReference === String(row.reference || "")}
-            onChange={(event) => void updateStatus(row, event.target.value)}>
-            {!STATUSES.includes(status as (typeof STATUSES)[number]) && <option value={status} disabled>{status || "Update status"}</option>}
-            {STATUSES.map((value) => <option value={value} key={value}>{value}</option>)}
-          </select>
+          <Select
+            aria-label={`Update status for order ${String(row.reference || "")}`}
+            value={status}
+            disabled={busyReference === String(row.reference || "")}
+            style={{ minWidth: 140 }}
+            onChange={(value) => void updateStatus(row, value)}
+            options={[...(!STATUSES.includes(status as (typeof STATUSES)[number]) ? [{ value: status, label: status || "Update status", disabled: true }] : []),
+              ...STATUSES.map((value) => ({ value, label: value }))]}
+          />
         </>;
       }}
     />

@@ -1,12 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Alert, App, Button, Input, Radio, Select, Spin, Steps } from "antd";
+import {
+  ArrowLeftOutlined, ArrowUpOutlined, DeleteOutlined, DownOutlined,
+  LockOutlined, PictureOutlined, SafetyCertificateOutlined, ShoppingOutlined, TruckOutlined,
+} from "@ant-design/icons";
 import { useAuth } from "@/components/site-provider";
 import type { CartProduct } from "@/components/site-provider";
 import { ApiRequestError, createFlutterwaveCheckout, createOrder } from "@/services/api";
-import { ArrowLeft, ArrowUpRight, ChevronDown, Lock, LoaderCircle, ShieldCheck, ShoppingBag, Truck, X } from "lucide-react";
 import { formatPrice, groupCartItems } from "./shared";
+
+type CountryOption = { name: string; capital: string };
+
+function isCountryOptionsResponse(value: unknown): value is { data: CountryOption[] } {
+  if (!value || typeof value !== "object" || !("data" in value) || !Array.isArray(value.data)) {
+    return false;
+  }
+  return value.data.every((country) =>
+    country && typeof country === "object" &&
+    "name" in country && typeof country.name === "string" &&
+    "capital" in country && typeof country.capital === "string"
+  );
+}
 
 export function Cart({
   items,
@@ -16,7 +33,6 @@ export function Cart({
   currency,
   loading,
   error,
-  signedIn,
 }: {
   items: CartProduct[];
   remove: (slug: string) => Promise<void>;
@@ -25,8 +41,8 @@ export function Cart({
   currency: string;
   loading: boolean;
   error: string;
-  signedIn: boolean;
 }) {
+  const { message } = App.useApp();
   const total = subtotal;
   const grouped = groupCartItems(items);
   return (
@@ -35,19 +51,16 @@ export function Cart({
         <p className="section-kicker">Your selection</p>
         <h1>Cart</h1>
       </div>
-      {error && <p className="field-error" role="alert">{error}</p>}
-      {loading && <p role="status">Updating your cart…</p>}
-      {!signedIn ? (
-        <div className="empty-state">
-          <h2>Sign in to view your cart.</h2>
-          <Link className="button-link" href="/login?returnTo=%2Fcart">Sign in</Link>
-        </div>
-      ) : items.length ? (
+      {error && <Alert showIcon type="error" title={error} />}
+      {loading && <div role="status"><Spin size="small" /> Updating your cart…</div>}
+      {items.length ? (
         <div className="cart-layout">
           <div>
             {grouped.map(({ product, quantity }) => (
               <div className="cart-item" key={product.slug}>
-                <img src={product.image} alt={product.title} />
+                {product.image
+                  ? <img src={product.image} alt={product.title} />
+                  : <div className="cart-item-image-placeholder" aria-hidden="true"><PictureOutlined /></div>}
                 <div>
                   <p className="art-type">{product.type}</p>
                   <h3>{product.title}</h3>
@@ -56,9 +69,8 @@ export function Cart({
                   {product.unavailable && <p className="field-error">Unavailable and cannot be checked out.</p>}
                 </div>
                 <strong>{formatPrice(product.price * quantity, product.currency)}</strong>
-                <button disabled={loading} onClick={() => { void remove(product.slug).catch(() => undefined); }} aria-label={`Remove one ${product.title}`}>
-                  <X />
-                </button>
+                <Button danger type="text" disabled={loading} aria-label={`Remove one ${product.title}`} icon={<DeleteOutlined />}
+                  onClick={() => { void remove(product.slug).catch((reason: unknown) => message.error(reason instanceof Error ? reason.message : "Unable to update your cart.")); }} />
               </div>
             ))}
           </div>
@@ -68,21 +80,19 @@ export function Cart({
             <hr />
             <p className="total">Total <strong>{formatPrice(total, currency)}</strong></p>
             {grouped.some(({ product }) => product.unavailable) ? (
-              <button className="button-link" type="button" disabled>Remove unavailable artwork to continue</button>
+              <Button className="button-link" disabled>Remove unavailable artwork to continue</Button>
             ) : (
-              <Link className="button-link" href="/checkout">Continue to checkout <ArrowUpRight /></Link>
+              <Button className="button-link" type="primary" href="/checkout" icon={<ArrowUpOutlined />}>Continue to checkout</Button>
             )}
-            <button className="text-link" type="button" disabled={loading} onClick={() => { void clear().catch(() => undefined); }}>Empty cart</button>
+            <Button type="link" danger disabled={loading} onClick={() => { void clear().catch((reason: unknown) => message.error(reason instanceof Error ? reason.message : "Unable to empty your cart.")); }}>Empty cart</Button>
           </aside>
         </div>
       ) : (
         <div className="empty-state">
-          <ShoppingBag />
+          <ShoppingOutlined />
           <h2>Your cart is quiet.</h2>
           <p>Find a work that changes the room.</p>
-          <Link className="button-link" href="/shop">
-            Explore the shop 
-          </Link>
+          <Button type="primary" href="/shop">Explore the shop</Button>
         </div>
       )}
     </section>
@@ -102,11 +112,11 @@ export function CheckoutField({
   children: React.ReactNode;
 }) {
   return (
-    <label className={`co-field ${className}${error ? " has-error" : ""}`}>
+    <div className={`co-field ${className}${error ? " has-error" : ""}`} role="group" aria-label={label}>
       <span>{label}</span>
       {children}
       {error && <small id={errorId} className="field-error">{error}</small>}
-    </label>
+    </div>
   );
 }
 export function Checkout({
@@ -125,9 +135,15 @@ export function Checkout({
   orderPlaced: () => void;
 }) {
   const { user, authLoading } = useAuth();
-  const [method, setMethod] = useState<"mobile" | "card">("mobile");
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(true);
+  const [countriesError, setCountriesError] = useState("");
+  const [method, setMethod] = useState<"mobile" | "card">("card");
   const [network, setNetwork] = useState<"MTN Mobile Money" | "Airtel Money">("MTN Mobile Money");
   const [contact, setContact] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
     address: "",
     city: "",
     postcode: "",
@@ -139,20 +155,66 @@ export function Checkout({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingReference, setPendingReference] = useState("");
   const [confirmationEmailStatus, setConfirmationEmailStatus] = useState<"sent" | "failed" | "">("");
+  const [idempotencyKey, setIdempotencyKey] = useState("");
 
   const grouped = groupCartItems(items);
   const count = items.length;
+  const selectedCountry = countries.find(({ name }) => name === contact.country);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/country-options", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Country data request failed (${response.status}).`);
+        const result: unknown = await response.json();
+        if (!isCountryOptionsResponse(result)) {
+          throw new Error("The country service returned invalid data.");
+        }
+        const options = result.data;
+        if (!options.length) throw new Error("The country service returned no countries.");
+        setCountries(options);
+        setContact((current) => {
+          if (current.city) return current;
+          const currentCountry = options.find(({ name }) => name === current.country);
+          return currentCountry?.capital ? { ...current, city: currentCountry.capital } : current;
+        });
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setCountriesError(reason instanceof Error ? reason.message : "Unable to load countries.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCountriesLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
 
   const onContact =
     (key: keyof typeof contact) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      setContact({ ...contact, [key]: e.target.value });
-      setErrors((current) => {
-        const next = { ...current };
-        delete next[key];
-        return next;
-      });
+      setContactValue(key, e.target.value);
     };
+
+  const setContactValue = (key: keyof typeof contact, value: string) => {
+    setContact((current) => ({ ...current, [key]: value }));
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (user) {
+      setContact((current) => ({
+        ...current,
+        name: current.name || user.name,
+        email: current.email || user.email,
+        phone: current.phone || user.phone,
+      }));
+    }
+  }, [user]);
 
   const startPayment = async (reference: string) => {
     const { data } = await createFlutterwaveCheckout(reference);
@@ -163,44 +225,29 @@ export function Checkout({
     window.location.assign(paymentUrl.toString());
   };
 
-  if (!user)
-    return (
-      <section className="checkout-page">
-        <div className="empty-state">
-          <h2>Sign in to check out.</h2>
-          <p>Your order details are linked to your account.</p>
-          <Link className="button-link" href="/login?returnTo=%2Fcheckout">Sign in <ArrowUpRight /></Link>
-        </div>
-      </section>
-    );
-
-  if (loading)
-    return <section className="checkout-page"><p role="status">Loading your cart…</p></section>;
+  if (loading || authLoading)
+    return <section className="checkout-page"><div role="status"><Spin /> Loading your cart…</div></section>;
 
   if (!count && !pendingReference)
     return (
       <section className="checkout-page">
         <div className="empty-state">
-          <ShoppingBag />
+          <ShoppingOutlined />
           <h2>Nothing to check out yet.</h2>
           <p>Add a work to your cart to continue.</p>
-          <Link className="button-link" href="/shop">Explore the shop <ArrowUpRight /></Link>
+          <Button type="primary" href="/shop" icon={<ArrowUpOutlined />}>Explore the shop</Button>
         </div>
       </section>
     );
 
   return (
     <section className="checkout-page">
-      <nav className="checkout-steps" aria-label="Checkout progress">
-        <Link href="/cart"><span>1</span> Cart</Link>
-        <strong aria-current="step"><span>2</span> Checkout</strong>
-        <em><span>3</span> Confirmation</em>
-      </nav>
+      <Steps className="checkout-steps-antd" current={1} size="small" items={[{ title: <Link href="/cart">Cart</Link> }, { title: "Checkout" }, { title: "Confirmation" }]} />
 
       <div className="checkout-heading">
         <h1>Checkout</h1>
         <p className="checkout-secure">
-          <Lock /> Secure, encrypted checkout
+          <LockOutlined /> Secure, encrypted checkout
         </p>
       </div>
 
@@ -211,6 +258,9 @@ export function Checkout({
           onSubmit={async (e) => {
             e.preventDefault();
             const nextErrors: Record<string, string> = {};
+            if (contact.name.trim().length < 2 || contact.name.trim().length > 160) nextErrors.name = "Enter your full name.";
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim()) || contact.email.length > 254) nextErrors.email = "Enter a valid email address.";
+            if (contact.phone.trim().replace(/\D/g, "").length < 7 || contact.phone.length > 40) nextErrors.phone = "Enter a valid phone number.";
             if (contact.address.trim().length < 3 || contact.address.length > 240) nextErrors.address = "Enter an address between 3 and 240 characters.";
             if (contact.city.trim().length < 2 || contact.city.length > 120) nextErrors.city = "Enter a city between 2 and 120 characters.";
             if (contact.country.trim().length < 2 || contact.country.length > 120) nextErrors.country = "Enter a valid country.";
@@ -224,7 +274,7 @@ export function Checkout({
             if (grouped.some(({ product }) => product.unavailable)) {
               nextErrors.form = "Remove unavailable artwork before checking out.";
             }
-            if (!cartId) nextErrors.form = "Your cart is not ready. Reload the cart and try again.";
+            if (user && !cartId && !items.length) nextErrors.form = "Your cart is not ready. Reload the cart and try again.";
             setErrors(nextErrors);
             if (Object.keys(nextErrors).length) return;
 
@@ -234,10 +284,17 @@ export function Checkout({
               if (phoneDigits.startsWith("250")) phoneDigits = phoneDigits.slice(3);
               if (phoneDigits.startsWith("0")) phoneDigits = phoneDigits.slice(1);
               const paymentPhone = `+250${phoneDigits}`;
-              const activeCartId = cartId;
-              if (!activeCartId) throw new Error("Your cart is not ready. Reload the cart and try again.");
+              const checkoutKey = idempotencyKey || crypto.randomUUID();
+              if (!idempotencyKey) setIdempotencyKey(checkoutKey);
               const result = await createOrder({
-                cartId: activeCartId,
+                ...(cartId ? { cartId } : {
+                  items: grouped.map(({ product, quantity }) => ({ productSlug: product.slug, quantity })),
+                }),
+                customer: {
+                  name: contact.name.trim(),
+                  email: contact.email.trim(),
+                  phone: contact.phone.trim(),
+                },
                 shippingAddress: {
                   address: contact.address.trim(),
                   city: contact.city.trim(),
@@ -247,7 +304,7 @@ export function Checkout({
                 payment: method === "mobile"
                   ? { method: "mobile_money", provider: network, phone: paymentPhone }
                   : { method: "card", ...(cardProvider.trim() ? { provider: cardProvider.trim() } : {}) },
-              });
+              }, checkoutKey);
               orderPlaced();
               setPendingReference(result.data.reference);
               setConfirmationEmailStatus(result.data.confirmationEmail || "");
@@ -269,7 +326,7 @@ export function Checkout({
               <h2>Order {pendingReference} created</h2>
               <p>Your order is pending payment. Continue to Flutterwave to finish checkout.</p>
               {confirmationEmailStatus === "failed" && <p role="status">The order was created, but its confirmation email could not be delivered.</p>}
-              <button className="button-link" type="button" disabled={isSubmitting} onClick={async () => {
+              <Button className="button-link" type="primary" disabled={isSubmitting} loading={isSubmitting} onClick={async () => {
                 setIsSubmitting(true);
                 setErrors({});
                 try {
@@ -279,16 +336,37 @@ export function Checkout({
                 } finally {
                   setIsSubmitting(false);
                 }
-              }}>
-                Retry hosted payment <ArrowUpRight />
-              </button>
+              }} icon={!isSubmitting ? <ArrowUpOutlined /> : undefined}>
+                Retry hosted payment
+              </Button>
             </div>
           )}
 
           {/* Contact */}
           <div className="checkout-block">
             <h2>Contact</h2>
-            <p>{user.name}<br />{user.email}<br />{user.phone}</p>
+            <p className="checkout-optional-account">
+              Checkout without creating an account. {user ? "Your details are pre-filled from your account." : (
+                <>Already have an account? <Link href="/login?returnTo=%2Fcheckout">Sign in</Link>, or <Link href="/register?returnTo=%2Fcheckout">create one</Link> (optional).</>
+              )}
+            </p>
+            <div className="co-grid">
+              <CheckoutField label="Full name" error={errors.name} errorId="name-error">
+                <Input autoComplete="name" maxLength={160} placeholder="Full name" value={contact.name}
+                  status={errors.name ? "error" : undefined} aria-describedby={errors.name ? "name-error" : undefined}
+                  onChange={(event) => setContactValue("name", event.target.value)} />
+              </CheckoutField>
+              <CheckoutField label="Email" error={errors.email} errorId="email-error">
+                <Input type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" value={contact.email}
+                  status={errors.email ? "error" : undefined} aria-describedby={errors.email ? "email-error" : undefined}
+                  onChange={(event) => setContactValue("email", event.target.value)} />
+              </CheckoutField>
+              <CheckoutField label="Phone" error={errors.phone} errorId="phone-error">
+                <Input type="tel" inputMode="tel" autoComplete="tel" maxLength={40} placeholder="+250 7XX XXX XXX" value={contact.phone}
+                  status={errors.phone ? "error" : undefined} aria-describedby={errors.phone ? "phone-error" : undefined}
+                  onChange={(event) => setContactValue("phone", event.target.value)} />
+              </CheckoutField>
+            </div>
           </div>
 
           {/* Delivery */}
@@ -296,96 +374,184 @@ export function Checkout({
             <h2>Delivery address</h2>
             <div className="co-grid">
               <CheckoutField label="Street address" className="span-2">
-                <input aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? "address-error" : undefined} autoComplete="street-address" placeholder="Street and house number" value={contact.address} onChange={onContact("address")} />
+                <Input status={errors.address ? "error" : undefined} aria-describedby={errors.address ? "address-error" : undefined} autoComplete="street-address" placeholder="Street and house number" value={contact.address} onChange={onContact("address")} />
                 {errors.address && <small id="address-error" className="field-error">{errors.address}</small>}
               </CheckoutField>
             </div>
             <div className="co-grid delivery-grid">
-              <CheckoutField label="City" error={errors.city} errorId="city-error">
-                <input aria-invalid={Boolean(errors.city)} aria-describedby={errors.city ? "city-error" : undefined} autoComplete="address-level2" placeholder="Kigali" value={contact.city} onChange={onContact("city")} />
+              <CheckoutField label="Country" error={errors.country} errorId="country-error">
+                  {countriesError ? (
+                    <Input
+                      aria-label="Country"
+                      autoComplete="country-name"
+                      placeholder="Enter your country"
+                      value={contact.country}
+                      status={errors.country ? "error" : undefined}
+                      onChange={(event) => setContactValue("country", event.target.value)}
+                    />
+                  ) : (
+                    <Select
+                      aria-label="Country"
+                      showSearch
+                      size="large"
+                      optionFilterProp="label"
+                      loading={countriesLoading}
+                      value={contact.country}
+                      status={errors.country ? "error" : undefined}
+                      options={countries.map(({ name }) => ({ value: name, label: name }))}
+                      onChange={(country) => {
+                        const capital = countries.find(({ name }) => name === country)?.capital || "";
+                        setContact((current) => ({ ...current, country, city: capital }));
+                        setErrors((current) => {
+                          const next = { ...current };
+                          delete next.country;
+                          delete next.city;
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
+                  {countriesError && <small className="field-error" role="status">Country list unavailable: {countriesError}. Enter the country manually.</small>}
+                </CheckoutField>
+                <CheckoutField label="City" error={errors.city} errorId="city-error">
+                  <Input status={errors.city ? "error" : undefined} aria-describedby={errors.city ? "city-error" : undefined} autoComplete="address-level2" placeholder={selectedCountry?.capital || "Enter your city"} value={contact.city} onChange={onContact("city")} />
               </CheckoutField>
               <CheckoutField label="Postal code (optional)" error={errors.postcode} errorId="postcode-error">
-                <input aria-invalid={Boolean(errors.postcode)} aria-describedby={errors.postcode ? "postcode-error" : undefined} autoComplete="postal-code" placeholder="Postal code" value={contact.postcode} onChange={onContact("postcode")} />
-              </CheckoutField>
-              <CheckoutField label="Country" error={errors.country} errorId="country-error">
-                <select aria-invalid={Boolean(errors.country)} aria-describedby={errors.country ? "country-error" : undefined} autoComplete="country-name" value={contact.country} onChange={onContact("country")}>
-                  <option value="Rwanda">Rwanda</option>
-                  <option value="Kenya">Kenya</option>
-                  <option value="Uganda">Uganda</option>
-                  <option value="Tanzania">Tanzania</option>
-                  <option value="Nigeria">Nigeria</option>
-                  <option value="South Africa">South Africa</option>
-                  <option value="Australia">Australia</option>
-                  <option value="Canada">Canada</option>
-                  <option value="France">France</option>
-                  <option value="Germany">Germany</option>
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="United States">United States</option>
-                </select>
+                <Input status={errors.postcode ? "error" : undefined} aria-describedby={errors.postcode ? "postcode-error" : undefined} autoComplete="postal-code" placeholder="Postal code" value={contact.postcode} onChange={onContact("postcode")} />
               </CheckoutField>
             </div>
           </div>
 
-          {/* Payment */}
-          <div className="checkout-block">
-            <h2>Payment</h2>
-            <div className="pay-options" role="radiogroup" aria-label="Payment method">
-              <label className="pay-option">
-                <input type="radio" name="method" checked={method === "mobile"} onChange={() => setMethod("mobile")} />
-                <span className="pay-option-body">
-                  <strong>Mobile money</strong>
-                  <small className="payment-brands"><span className="brand-mtn">MTN</span><span className="brand-airtel">Airtel</span></small>
-                </span>
-              </label>
-              <label className="pay-option">
-                <input type="radio" name="method" checked={method === "card"} onChange={() => setMethod("card")} />
-                <span className="pay-option-body">
-                  <strong>Card · hosted checkout required</strong>
-                  <small className="payment-brands"><span className="brand-visa">VISA</span><span className="brand-mastercard"><i></i><i></i><b>mastercard</b></span></small>
-                </span>
-              </label>
-            </div>
+    {/* Payment */}
+<div className="checkout-block">
+  <h2>Payment</h2>
 
-            <div key={method} className="pay-details-panel">
-            {method === "mobile" ? (
-              <div className="co-grid pay-details">
-                <div className="co-field span-2">
-                  <span>Network</span>
-                  <div className="segmented" role="radiogroup" aria-label="Mobile money network">
-                    {["MTN Mobile Money", "Airtel Money"].map((n) => (
-                      <label key={n}>
-                        <input type="radio" name="network" checked={network === n} onChange={() => setNetwork(n === "Airtel Money" ? "Airtel Money" : "MTN Mobile Money")} />
-                        <span>{n}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <CheckoutField label="Mobile money number" className="span-2">
-                  <span className="phone-input">
-                    <span aria-hidden="true">+250</span>
-                    <input aria-label="Mobile money number" aria-invalid={Boolean(errors.momo)} aria-describedby={errors.momo ? "momo-error" : undefined} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="78X XXX XXX" value={momo} onChange={(e) => { setMomo(e.target.value); setErrors((current) => { const next = { ...current }; delete next.momo; return next; }); }} />
-                  </span>
-                  {errors.momo && <small id="momo-error" className="field-error">{errors.momo}</small>}
-                </CheckoutField>
-                  <p className="payment-note span-2">Flutterwave will prompt on the mobile money number. Rwanda mobile money requires the cart currency to be RWF.</p>
-                </div>
-            ) : (
-                <div className="co-grid pay-details">
-                  <CheckoutField label="Payment provider (optional)" className="span-2">
-                    <input maxLength={120} placeholder="Flutterwave" value={cardProvider} onChange={(event) => setCardProvider(event.target.value)} />
-                  </CheckoutField>
-                  <p className="payment-note span-2">Flutterwave will collect card details on its hosted checkout page. This site never accepts card numbers.</p>
-                </div>
-            )}
-            </div>
+  <div className="pay-options" role="radiogroup" aria-label="Payment method">
+    {[
+      {
+        value: "card",
+        title: "Card",
+        hint: "Visa, Mastercard · hosted checkout",
+        brands: (
+          <span className="payment-brands">
+            <span className="brand-visa">VISA</span>
+            <span className="brand-mastercard" aria-hidden="true">
+              <i /><i /><b>mastercard</b>
+            </span>
+          </span>
+        ),
+      },
+      {
+        value: "mobile",
+        title: "Mobile money",
+        hint: "MTN or Airtel · Rwanda",
+        brands: (
+          <span className="payment-brands">
+            <span className="brand-mtn">MTN</span>
+            <span className="brand-airtel">Airtel</span>
+          </span>
+        ),
+      },
+    ].map((option) => (
+      <label className="pay-option" key={option.value}>
+        <input
+          type="radio"
+          name="payment-method"
+          value={option.value}
+          checked={method === option.value}
+          onChange={(event) => {
+            if (event.target.value === "card" || event.target.value === "mobile") {
+              setMethod(event.target.value);
+            }
+          }}
+        />
+        <span className="pay-option-body">
+          <strong>{option.title}</strong>
+          <small>{option.hint}</small>
+          {option.brands}
+        </span>
+      </label>
+    ))}
+  </div>
+
+  <div key={method} className="pay-details-panel">
+    {method === "mobile" ? (
+      <div className="co-grid pay-details">
+        <div className="co-field span-2">
+          <span>Network</span>
+          <div className="segmented" role="radiogroup" aria-label="Mobile money network">
+            {["MTN Mobile Money", "Airtel Money"].map((value) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="momo-network"
+                  value={value}
+                  checked={network === value}
+                  onChange={(event) => {
+                    if (event.target.value === "MTN Mobile Money" || event.target.value === "Airtel Money") {
+                      setNetwork(event.target.value);
+                    }
+                  }}
+                />
+                <span>{value.replace(" Mobile Money", "").replace(" Money", "")}</span>
+              </label>
+            ))}
           </div>
+        </div>
+
+        <div className="co-field span-2">
+          <span>Mobile money number</span>
+          <div className={`phone-input${errors.momo ? " has-error" : ""}`}>
+            <span aria-hidden="true">+250</span>
+            <input
+              aria-label="Mobile money number"
+              aria-invalid={errors.momo ? "true" : undefined}
+              aria-describedby={errors.momo ? "momo-error" : "momo-hint"}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel-national"
+              placeholder="78X XXX XXX"
+              value={momo}
+              onChange={(e) => {
+                setMomo(e.target.value);
+                setErrors((current) => {
+                  const next = { ...current };
+                  delete next.momo;
+                  return next;
+                });
+              }}
+            />
+          </div>
+          {errors.momo ? (
+            <small id="momo-error" className="field-error">{errors.momo}</small>
+          ) : (
+            <small id="momo-hint" className="payment-note">
+              You'll receive a prompt on this number to approve the payment.
+            </small>
+          )}
+        </div>
+
+        <p className="payment-note span-2">
+          Mobile money requires the cart currency to be <strong>RWF</strong>.
+        </p>
+      </div>
+    ) : (
+      <div className="co-grid pay-details">
+        <p className="payment-note span-2">
+          You'll be redirected to a secure hosted checkout to enter your card details.
+          This site never stores card numbers.
+        </p>
+      </div>
+    )}
+  </div>
+</div>
 
           <div className="checkout-actions">
-            {errors.form && <p className="field-error" role="alert">{errors.form}</p>}
-            <button type="submit" className="button-link checkout-submit" disabled={isSubmitting || Boolean(pendingReference)}>
-              {isSubmitting ? <LoaderCircle className="loading-icon" /> : <Lock />}
+            {errors.form && <Alert showIcon type="error" title={errors.form} />}
+            <Button type="primary" htmlType="submit" className="button-link checkout-submit" loading={isSubmitting}
+              disabled={isSubmitting || Boolean(pendingReference)} icon={!isSubmitting ? <LockOutlined /> : undefined}>
               {isSubmitting ? "Processing…" : `Continue to payment · ${formatPrice(subtotal, currency)}`}
-            </button>
+            </Button>
             <p className="checkout-approval">You will be redirected to Flutterwave to complete payment securely.</p>
             <p className="checkout-terms">
               By placing your order you agree to our <Link href="/shipping">shipping & returns policy</Link>.
@@ -398,7 +564,7 @@ export function Checkout({
           <details className="summary-details" open>
           <summary>
             <span>Order summary <small>{count} {count === 1 ? "item" : "items"}</small></span>
-            <span className="summary-preview">{formatPrice(subtotal, currency)} <ChevronDown /></span>
+            <span className="summary-preview">{formatPrice(subtotal, currency)} <DownOutlined /></span>
           </summary>
           <div className="summary-content">
           <div className="co-items">
@@ -436,9 +602,9 @@ export function Checkout({
         </aside>
         <section className="checkout-trust" aria-label="Shopping with confidence">
           <h2>Care, at every step</h2>
-          <p><Truck /> Carefully packed, with delivery updates along the way.</p>
-          <p><ArrowLeft /> 14-day returns on eligible works.</p>
-          <p><ShieldCheck /> Every work is verified for artist authenticity.</p>
+          <p><TruckOutlined /> Carefully packed, with delivery updates along the way.</p>
+          <p><ArrowLeftOutlined /> 14-day returns on eligible works.</p>
+          <p><SafetyCertificateOutlined /> Every work is verified for artist authenticity.</p>
         </section>
         </div>
       </div>

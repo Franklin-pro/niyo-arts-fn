@@ -246,6 +246,11 @@ export async function getCollection(slug: string) {
 export interface CreateOrderInput {
   cartId?: string;
   items?: { productSlug: string; quantity: number }[];
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+  };
   shippingAddress: { address: string; city: string; country: string; postcode?: string };
   payment:
     | { method: "mobile_money"; provider: "MTN Mobile Money" | "Airtel Money"; phone: string }
@@ -265,9 +270,10 @@ export interface CreatedOrder {
   confirmationEmail?: "sent" | "failed";
 }
 
-export async function createOrder(order: CreateOrderInput) {
+export async function createOrder(order: CreateOrderInput, idempotencyKey?: string) {
   return request<ApiResponse<CreatedOrder>>("/orders", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify(order),
   });
 }
@@ -370,6 +376,7 @@ export const adminApi = {
   },
   artists: {
     list: () => adminRequest<ApiResponse<ApiArtist[]>>("/artists"),
+    get: (slug: string) => adminRequest<ApiResponse<ApiArtist>>(`/artists/${encodeURIComponent(slug)}`),
     create: (input: AdminArtistInput) => adminRequest<ApiResponse<ApiArtist>>("/artists", "POST", input),
     update: (slug: string, input: Partial<AdminArtistInput>) =>
       adminRequest<ApiResponse<ApiArtist>>(`/artists/${encodeURIComponent(slug)}`, "PUT", input),
@@ -377,6 +384,7 @@ export const adminApi = {
   },
   collections: {
     list: () => adminRequest<ApiResponse<ApiCollection[]>>("/collections"),
+    get: (slug: string) => adminRequest<ApiResponse<ApiCollection>>(`/collections/${encodeURIComponent(slug)}`),
     create: (input: AdminCollectionInput) =>
       adminRequest<ApiResponse<ApiCollection>>("/collections", "POST", input),
     update: (slug: string, input: Partial<AdminCollectionInput>) =>

@@ -1,0 +1,98 @@
+.foundation-page {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #fff;
+  color: #777;
+  padding-top: 25px;
+}
+
+.foundation-container {
+  width: 100%;
+  max-width: 1050px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Hero banner */
+.foundation-hero {
+  position: relative;
+  height: 299px;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.foundation-hero h1 {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 2px;
+  font-size: 28px;
+  font-weight: 400;
+  color: #fff;
+  letter-spacing: 0;
+}
+
+/* Intro: text + image */
+.foundation-intro {
+  display: grid;
+  grid-template-columns: 510px 510px;
+  column-gap: 30px;
+  margin-top: 30px;
+  align-items: start;
+}
+.foundation-intro h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+  line-height: 38px;
+  font-weight: 400;
+  color: #555;
+}
+.foundation-intro p {
+  margin: 0 0 21px;
+  font-size: 16px;
+  line-height: 30.2px;
+  color: #777;
+}
+.foundation-intro img {
+  display: block;
+  width: 510px;
+  height: 612px;
+  object-fit: cover;
+}
+
+/* Gallery */
+.foundation-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  column-gap: 4px;
+  margin-top: 30px;
+  padding-right: 4px;
+}
+.foundation-gallery img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 259 / 388;
+  object-fit: cover;
+}
+
+/* Space above footer */
+.foundation-footer-space {
+  margin-top: 63px;
+  height: 198px;
+  border-top: 1px solid #ebebeb;
+  border-bottom: 1px solid #ebebeb;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1080px) {
+  .foundation-container { padding: 0 20px; }
+  .foundation-intro { grid-template-columns: 1fr 1fr; }
+  .foundation-intro img { width: 100%; height: auto; aspect-ratio: 510 / 612; }
+}
+@media (max-width: 700px) {
+  .foundation-hero { height: 200px; }
+  .foundation-intro { grid-template-columns: 1fr; row-gap: 24px; }
+  .foundation-gallery { grid-template-columns: repeat(2, 1fr); row-gap: 4px; padding-right: 0; }
+}

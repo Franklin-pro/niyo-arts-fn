@@ -4,7 +4,8 @@ import { AdminList, useAdminResource } from "@/features/admin/admin-shared";
 import { toAdminRows } from "@/lib/admin-utils";
 import { adminApi } from "@/services/api";
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Button, Popconfirm } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 
 export function CollectionList() {
   const [refresh, setRefresh] = useState(0);
@@ -28,7 +29,10 @@ export function CollectionList() {
     summary={(row) => String(row.title || row.slug || "Collection")}
     subtitle={(row) => [row.line, Array.isArray(row.products) ? `${row.products.length} works` : ""].filter(Boolean).join(" · ")}
     image={(row) => String(row.imageUrl || "")}
-    controls={(row) => <button type="button" className="adm-icon-btn danger" disabled={busySlug === String(row.slug || "")}
-      aria-label={`Delete ${String(row.title || row.slug || "collection")}`} onClick={() => void remove(String(row.slug || ""))}><Trash2 /></button>}
+    controls={(row) => <Popconfirm title="Delete or deactivate this collection?" description={String(row.title || row.slug || "")}
+      onConfirm={() => void remove(String(row.slug || ""))} okText="Continue" okButtonProps={{ danger: true }}>
+      <Button type="text" danger icon={<DeleteOutlined />} loading={busySlug === String(row.slug || "")}
+        aria-label={`Delete ${String(row.title || row.slug || "collection")}`} />
+    </Popconfirm>}
   />;
 }

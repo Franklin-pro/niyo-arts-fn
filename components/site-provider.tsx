@@ -34,6 +34,12 @@ function getCartStorageKey(userId: string) {
   return `niyo.cartId:${userId}`;
 }
 
+const GUEST_CART_STORAGE_KEY = "niyo.guestCart";
+
+function getGuestCartSubtotal(products: CartProduct[]) {
+  return products.reduce((sum, product) => sum + product.price, 0);
+}
+
 function mapCart(cart: ApiCart): CartProduct[] {
   return cart.items.flatMap((item) => {
     const product = item.product;
@@ -45,7 +51,7 @@ function mapCart(cart: ApiCart): CartProduct[] {
       category: "",
       price: product?.price || 0,
       currency: product?.currency || cart.currency,
-      image: product?.imageUrl || "https://placehold.co/640x800?text=Unavailable",
+      image: product?.imageUrl || "",
       unavailable: item.unavailable || !product,
     };
     return Array.from({ length: item.quantity }, () => cartProduct);
@@ -118,7 +124,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       setItems([]);
       setSubtotal(0);
       setCartId(null);
-      setCartError("Your session expired. Sign in again to continue.");
+      // setCartError("Your session expired. Sign in again to continue.");
     };
     window.addEventListener("niyo:auth-expired", expireSession);
     return () => window.removeEventListener("niyo:auth-expired", expireSession);
@@ -147,9 +153,28 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) {
+      if (authLoading) return;
       setItems([]);
       setSubtotal(0);
+      setCurrency("USD");
       setCartId(null);
+      try {
+        const savedCart = window.localStorage.getItem(GUEST_CART_STORAGE_KEY);
+        if (!savedCart) return;
+        const parsed: unknown = JSON.parse(savedCart);
+        if (!Array.isArray(parsed) || parsed.some((item) =>
+          !item || typeof item !== "object" || typeof item.slug !== "string" ||
+          typeof item.title !== "string" || typeof item.price !== "number" || !Number.isFinite(item.price)
+        )) {
+          throw new Error("The saved guest cart has invalid data.");
+        }
+        const guestItems = parsed as CartProduct[];
+        setItems(guestItems);
+        setSubtotal(getGuestCartSubtotal(guestItems));
+        setCurrency(guestItems[0]?.currency || "USD");
+      } catch (reason) {
+        setCartError(reason instanceof Error ? reason.message : "Unable to restore your saved cart.");
+      }
       return;
     }
     let active = true;
@@ -175,13 +200,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         if (active) setCartLoading(false);
       });
     return () => { active = false; };
-  }, [user, applyCart]);
+  }, [user, authLoading, applyCart]);
 
   const authenticate = useCallback((authResult: { accessToken: string; user: AuthUser }) => {
     saveAccessToken(authResult.accessToken);
     setCartError("");
-    setItems([]);
-    setSubtotal(0);
     setCartId(null);
     setUser(authResult.user);
   }, []);
@@ -221,14 +244,29 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   }, [applyCart]);
 
   const add = useCallback(async (product: CartProduct) => {
-    if (!user) throw new Error("Sign in to add artwork to your cart.");
     setCartLoading(true);
     setCartError("");
     try {
+      if (!user) {
+        const nextItems = [...items, product];
+        window.localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(nextItems));
+        setItems(nextItems);
+        setSubtotal(getGuestCartSubtotal(nextItems));
+        setCurrency(nextItems[0]?.currency || "USD");
+        return;
+      }
       let activeCartId = cartId;
       if (!activeCartId) {
         const created = await createCart();
         activeCartId = created.data.id;
+        if (items.length) {
+          const quantities = new Map<string, number>();
+          items.forEach((item) => quantities.set(item.slug, (quantities.get(item.slug) || 0) + 1));
+          for (const [slug, quantity] of quantities) {
+            await addCartItem(activeCartId, slug, quantity);
+          }
+          window.localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+        }
         window.localStorage.setItem(getCartStorageKey(user.id), activeCartId);
         setCartId(activeCartId);
       }
@@ -241,19 +279,37 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     } finally {
       setCartLoading(false);
     }
-  }, [applyCart, cartId, user]);
+  }, [applyCart, cartId, items, user]);
 
   const remove = useCallback(async (slug: string) => {
+    if (!user) {
+      const index = items.findIndex((item) => item.slug === slug);
+      if (index < 0) return;
+      const nextItems = items.filter((_, itemIndex) => itemIndex !== index);
+      window.localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(nextItems));
+      setItems(nextItems);
+      setSubtotal(getGuestCartSubtotal(nextItems));
+      setCurrency(nextItems[0]?.currency || "USD");
+      return;
+    }
     if (!cartId) return;
     const quantity = items.filter((item) => item.slug === slug).length;
     if (quantity < 1) return;
     await runCartOperation(() => quantity === 1
       ? deleteCartItem(cartId, slug).then(({ data }) => data)
       : setCartItemQuantity(cartId, slug, quantity - 1).then(({ data }) => data));
-  }, [cartId, items, runCartOperation]);
+  }, [cartId, items, runCartOperation, user]);
 
   const clear = useCallback(async () => {
-    if (!cartId || !user) return;
+    if (!user) {
+      window.localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+      setItems([]);
+      setSubtotal(0);
+      setCurrency("USD");
+      setCartError("");
+      return;
+    }
+    if (!cartId) return;
     setCartLoading(true);
     setCartError("");
     try {
@@ -272,8 +328,10 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   const orderPlaced = useCallback(() => {
     if (user) window.localStorage.removeItem(getCartStorageKey(user.id));
+    window.localStorage.removeItem(GUEST_CART_STORAGE_KEY);
     setItems([]);
     setSubtotal(0);
+    setCurrency("USD");
     setCartId(null);
   }, [user]);
 

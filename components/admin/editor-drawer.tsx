@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { X } from "lucide-react";
+import { Button, Drawer } from "antd";
+import { CloseOutlined } from "@ant-design/icons";
 
 export function EditorDrawer({
   title,
@@ -14,29 +14,18 @@ export function EditorDrawer({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", closeOnEscape);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
   return (
-    <div className="adm-overlay" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <aside className="adm-drawer" role="dialog" aria-modal="true" aria-label={title}>
-        <header>
-          <div><h2>{title}</h2>{description && <p>{description}</p>}</div>
-          <button type="button" className="adm-icon-btn" onClick={onClose} aria-label="Close editor"><X /></button>
-        </header>
-        <div className="adm-editor">{children}</div>
-      </aside>
-    </div>
+    <Drawer
+      title={<div><strong>{title}</strong>{description && <div className="adm-drawer-description">{description}</div>}</div>}
+      open
+      onClose={onClose}
+      placement="right"
+      width={560}
+      destroyOnHidden
+      extra={<Button type="text" aria-label="Close editor" icon={<CloseOutlined />} onClick={onClose} />}
+      styles={{ body: { padding: 0 } }}
+    >
+      <div className="adm-editor">{children}</div>
+    </Drawer>
   );
 }

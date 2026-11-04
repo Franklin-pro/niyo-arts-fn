@@ -4,13 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
+import { Alert, App, Button, Card, Descriptions, Input, Listy, Space, Tag, Typography } from "antd";
 import { useAuth } from "@/components/site-provider";
 import { ApiRequestError, getOrder, getOrders, requestPasswordReset, resetPassword } from "@/services/api";
 import type { ApiOrder } from "@/services/api";
 import {
-  ArrowLeft, ArrowRight, ArrowUpRight, Check, Copy, CreditCard, Eye, EyeOff, KeyRound,
-  Loader2, Lock, LogOut, Mail, MapPin, PackageOpen, Phone, Smartphone, User,
-} from "lucide-react";
+  ArrowLeftOutlined, ArrowRightOutlined, ArrowUpOutlined, CheckOutlined, CopyOutlined,
+  CreditCardOutlined, EnvironmentOutlined, EyeInvisibleOutlined, EyeOutlined, InboxOutlined,
+  KeyOutlined, LoadingOutlined, LockOutlined, LogoutOutlined, MailOutlined, MobileOutlined,
+  PhoneOutlined, UserOutlined,
+} from "@ant-design/icons";
 import { formatPrice, useResource } from "./shared";
 import { Generic } from "./static-pages";
 
@@ -21,21 +24,8 @@ import { Generic } from "./static-pages";
 const GOLD = "#d4af37";
 const card = "rounded-3xl bg-white shadow-[0_1px_0_rgba(0,0,0,0.04),0_24px_48px_-24px_rgba(24,24,27,0.25)]";
 const focusRing = "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#d4af37]";
-const goldBtn = `inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d4af37] px-4 py-3 text-sm font-semibold text-zinc-900 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`;
-const ghostBtn = `inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 ${focusRing}`;
-const inputCls =
-  "w-full rounded-xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition focus:border-[#d4af37] focus:outline-none focus:ring-4 focus:ring-[#d4af37]/20";
 
-type Tone = "green" | "amber" | "rose" | "sky" | "zinc";
-const TONES: Record<Tone, { badge: string; dot: string }> = {
-  green: { badge: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
-  amber: { badge: "bg-amber-50 text-amber-700", dot: "bg-amber-500" },
-  rose: { badge: "bg-rose-50 text-rose-700", dot: "bg-rose-500" },
-  sky: { badge: "bg-sky-50 text-sky-700", dot: "bg-sky-500" },
-  zinc: { badge: "bg-zinc-100 text-zinc-600", dot: "bg-zinc-400" },
-};
-
-function toneFor(value?: string): Tone {
+function toneFor(value?: string) {
   const s = (value || "").toLowerCase();
   if (["paid", "successful", "success", "completed", "delivered", "confirmed"].includes(s)) return "green";
   if (s.includes("pending") || ["processing", "awaiting"].includes(s)) return "amber";
@@ -60,13 +50,11 @@ function formatDate(iso: string) {
 }
 
 function StatusBadge({ label, value }: { label?: string; value?: string }) {
-  const tone = TONES[toneFor(value)];
+  const tone = toneFor(value);
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${tone.badge}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
-      {label && <span className="opacity-70">{label}</span>}
-      <span>{pretty(value)}</span>
-    </span>
+    <Tag color={tone === "green" ? "success" : tone === "amber" ? "warning" : tone === "rose" ? "error" : tone === "sky" ? "processing" : "default"}>
+      {label ? `${label}: ` : ""}{pretty(value)}
+    </Tag>
   );
 }
 
@@ -89,7 +77,7 @@ function Shell({ children, back }: { children: ReactNode; back?: { href: string;
             href={back.href}
             className={`mb-5 inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm font-medium text-zinc-500 transition hover:text-zinc-900 ${focusRing}`}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeftOutlined />
             {back.label}
           </Link>
         )}
@@ -115,22 +103,24 @@ function Skeleton() {
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
+  const { message } = App.useApp();
   return (
-    <button
-      type="button"
+    <Button
+      htmlType="button"
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value);
           setCopied(true);
           setTimeout(() => setCopied(false), 1800);
-        } catch {
-          /* clipboard unavailable */
+        } catch (reason) {
+          message.error(reason instanceof Error ? reason.message : "Unable to copy the order reference.");
         }
       }}
-      className={`inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 ${focusRing}`}
+      size="small"
+      icon={copied ? <CheckOutlined /> : <CopyOutlined />}
     >
-      {copied ? <><Check className="h-3.5 w-3.5 text-emerald-600" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
-    </button>
+      {copied ? "Copied" : "Copy"}
+    </Button>
   );
 }
 
@@ -188,7 +178,7 @@ function passwordScore(pw: string) {
 const LEVELS = ["", "Weak", "Fair", "Good", "Strong"];
 const BAR_COLORS = ["", "bg-rose-500", "bg-amber-500", "bg-emerald-400", "bg-emerald-600"];
 
-type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
+type FieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
   id: string;
   label: string;
   icon: ReactNode;
@@ -203,8 +193,7 @@ function Field({ id, label, icon, trailing, ...input }: FieldProps) {
         <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 [&>svg]:h-4 [&>svg]:w-4">
           {icon}
         </span>
-        <input id={id} className={`${inputCls} ${trailing ? "pr-12" : ""}`} {...input} />
-        {trailing && <div className="absolute right-2 top-1/2 -translate-y-1/2">{trailing}</div>}
+        <Input id={id} className="auth-antd-input" prefix={icon} suffix={trailing} {...input} />
       </div>
     </div>
   );
@@ -332,7 +321,7 @@ export function AccountPage({ mode }: { mode: Mode }) {
                       <strong className="shrink-0 text-sm font-semibold tabular-nums text-zinc-900">
                         {formatPrice(order.total, order.currency)}
                       </strong>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-zinc-900" />
+                      <ArrowRightOutlined className="shrink-0 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-zinc-900" />
                     </Link>
                   </li>
                 ))}
@@ -340,7 +329,7 @@ export function AccountPage({ mode }: { mode: Mode }) {
             ) : (
               !ordersLoading && (
                 <div className="mt-4 flex flex-col items-center rounded-2xl bg-zinc-50 py-10 text-center">
-                  <PackageOpen className="h-8 w-8 text-zinc-400" />
+                  <InboxOutlined className="text-2xl text-zinc-400" />
                   <p className="mt-3 max-w-xs text-sm text-zinc-500">No orders yet. When you buy a work, it will show up here.</p>
                 </div>
               )
@@ -349,9 +338,9 @@ export function AccountPage({ mode }: { mode: Mode }) {
 
           <footer className="space-y-3 px-6 pb-8 pt-8 sm:px-10 sm:pb-10">
             {user.role === "admin" && (
-              <Link href="/admin" className={goldBtn}>Studio dashboard <ArrowUpRight className="h-4 w-4" /></Link>
+              <Button href="/admin" type="primary" block icon={<ArrowUpOutlined />}>Studio dashboard</Button>
             )}
-            <button type="button" onClick={logout} className={ghostBtn}><LogOut className="h-4 w-4" /> Sign out</button>
+            <Button block icon={<LogoutOutlined />} onClick={logout}>Sign out</Button>
           </footer>
         </article>
       </Shell>
@@ -376,11 +365,11 @@ export function AccountPage({ mode }: { mode: Mode }) {
         </p>
         <div className="auth-stack mt-8 space-y-3">
           {user ? (
-            <Link className={goldBtn} href="/account">Go to your account <ArrowUpRight className="h-4 w-4" /></Link>
+            <Button className="auth-action-button" type="primary" href="/account" icon={<ArrowUpOutlined />}>Go to your account</Button>
           ) : (
             <>
-              <Link className={goldBtn} href="/login">Sign in <ArrowUpRight className="h-4 w-4" /></Link>
-              <Link className={ghostBtn} href="/register">Create an account</Link>
+              <Button className="auth-action-button" type="primary" href="/login" icon={<ArrowUpOutlined />}>Sign in</Button>
+              <Button className="auth-action-button" href="/register">Create an account</Button>
             </>
           )}
         </div>
@@ -395,15 +384,14 @@ export function AccountPage({ mode }: { mode: Mode }) {
   const score = passwordScore(form.password);
 
   const passwordToggle = (
-    <button
-      type="button"
+    <Button
+      type="text"
+      size="small"
       onClick={() => setShowPassword((v) => !v)}
       aria-label={showPassword ? "Hide password" : "Show password"}
       aria-pressed={showPassword}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 ${focusRing}`}
-    >
-      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-    </button>
+      icon={showPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+    />
   );
 
   const onSubmit = async (event: React.FormEvent) => {
@@ -443,15 +431,15 @@ export function AccountPage({ mode }: { mode: Mode }) {
       {done ? (
         <div role="status" className="text-center">
           <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 ring-8 ring-emerald-100">
-            <Check className="h-8 w-8 text-white" strokeWidth={2.5} />
+            <CheckOutlined className="text-2xl text-white" />
           </span>
           <h1 className="mt-6 text-2xl font-semibold tracking-tight text-zinc-900">
             {mode === "forgot-password" ? "Check your inbox" : "Password updated"}
           </h1>
           <p className="mx-auto mt-2 max-w-xs text-[15px] leading-relaxed text-zinc-500">{message}</p>
-          <Link className={`${goldBtn} mt-8`} href="/login">
-            {mode === "forgot-password" ? "Back to sign in" : "Sign in now"} <ArrowUpRight className="h-4 w-4" />
-          </Link>
+          <Button className="auth-action-button mt-8" type="primary" href="/login" icon={<ArrowUpOutlined />}>
+            {mode === "forgot-password" ? "Back to sign in" : "Sign in now"}
+          </Button>
         </div>
       ) : (
         <>
@@ -460,31 +448,31 @@ export function AccountPage({ mode }: { mode: Mode }) {
 
           <form className="auth-form mt-8" onSubmit={onSubmit}>
             {mode === "register" && (
-              <Field id="auth-name" label="Full name" icon={<User />} placeholder="Jane Doe"
+              <Field id="auth-name" label="Full name" icon={<UserOutlined />} placeholder="Jane Doe"
                 required minLength={2} maxLength={160} autoComplete="name"
                 value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             )}
 
             {mode !== "reset-password" && (
-              <Field id="auth-email" label="Email address" icon={<Mail />} placeholder="you@example.com"
+              <Field id="auth-email" label="Email address" icon={<MailOutlined />} placeholder="you@example.com"
                 required type="email" maxLength={254} autoComplete="email"
                 value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             )}
 
             {mode === "register" && (
-              <Field id="auth-phone" label="Phone number" icon={<Phone />} placeholder="+250 7xx xxx xxx"
+              <Field id="auth-phone" label="Phone number" icon={<PhoneOutlined />} placeholder="+250 7xx xxx xxx"
                 required type="tel" minLength={5} maxLength={40} autoComplete="tel"
                 value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             )}
 
             {mode === "reset-password" && !tokenFromUrl && (
-              <Field id="auth-token" label="Reset token" icon={<KeyRound />} placeholder="Paste the token from your email"
+              <Field id="auth-token" label="Reset token" icon={<KeyOutlined />} placeholder="Paste the token from your email"
                 required value={form.token} onChange={(e) => setForm({ ...form, token: e.target.value })} />
             )}
 
             {needsPassword && (
               <div>
-                <Field id="auth-password" label={mode === "reset-password" ? "New password" : "Password"} icon={<Lock />}
+                <Field id="auth-password" label={mode === "reset-password" ? "New password" : "Password"} icon={<LockOutlined />}
                   placeholder="At least 8 characters" trailing={passwordToggle}
                   required minLength={8} maxLength={128} type={showPassword ? "text" : "password"}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
@@ -512,11 +500,11 @@ export function AccountPage({ mode }: { mode: Mode }) {
               </div>
             )}
 
-            {error && <p role="alert" className="auth-error rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
+            {error && <Alert showIcon type="error" title={error} />}
 
-            <button type="submit" className={`${goldBtn} auth-submit`} disabled={submitting}>
-              {submitting ? <><Loader2 className="h-4 w-4 motion-safe:animate-spin" /> Please wait…</> : <>{copy.cta} <ArrowUpRight className="h-4 w-4" /></>}
-            </button>
+            <Button className="auth-submit" type="primary" htmlType="submit" loading={submitting} icon={!submitting ? <ArrowUpOutlined /> : undefined}>
+              {submitting ? "Please wait…" : copy.cta}
+            </Button>
           </form>
 
           <p className="auth-switch mt-6 text-center text-sm text-zinc-500">
@@ -568,13 +556,7 @@ type Order = {
 
 function DetailBlock({ icon: Icon, title, children }: { icon: React.ComponentType<{ className?: string }>; title: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl bg-zinc-50 p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-        <Icon className="h-4 w-4 text-zinc-400" />
-        {title}
-      </div>
-      <div className="mt-2 space-y-0.5 text-sm leading-relaxed text-zinc-600">{children}</div>
-    </div>
+    <Card size="small" title={<Space><Icon className="text-zinc-400" />{title}</Space>}>{children}</Card>
   );
 }
 
@@ -596,7 +578,7 @@ export function OrderDetail({ reference }: { reference: string }) {
   if (!user) {
     return (
       <Generic title="Sign in required" eyebrow="Niyo / order">
-        <Link className="button-link" href="/login">Sign in <ArrowUpRight /></Link>
+        <Button type="primary" href="/login" icon={<ArrowUpOutlined />}>Sign in</Button>
       </Generic>
     );
   }
@@ -611,13 +593,7 @@ export function OrderDetail({ reference }: { reference: string }) {
     <Shell back={{ href: "/orders", label: "All orders" }}>
       {loading && <div role="status" aria-label="Loading order"><Skeleton /></div>}
 
-      {error && (
-        <div role="alert" className={`${card} p-8 text-center`}>
-          <h1 className="text-xl font-semibold text-zinc-900">We couldn’t load this order</h1>
-          <p className="mt-2 text-sm text-rose-600">{error}</p>
-          <Link href="/orders" className={`${ghostBtn} mt-6 !w-auto`}>Back to my orders</Link>
-        </div>
-      )}
+      {error && <Alert showIcon type="error" title="We couldn’t load this order" description={error} action={<Button href="/orders">Back to orders</Button>} />}
 
       {order && (
         <article className={card}>
@@ -635,9 +611,7 @@ export function OrderDetail({ reference }: { reference: string }) {
             {awaitingPayment && (
               <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-relaxed text-amber-900">We haven’t received your payment yet. Finish paying to confirm this order.</p>
-                <a href={order.paymentUrl} className={`${goldBtn} !w-auto shrink-0`}>
-                  Complete payment <ArrowUpRight className="h-4 w-4" />
-                </a>
+                <Button type="primary" href={order.paymentUrl} icon={<ArrowUpOutlined />}>Complete payment</Button>
               </div>
             )}
           </header>
@@ -651,32 +625,21 @@ export function OrderDetail({ reference }: { reference: string }) {
             </div>
 
             {order.items?.length ? (
-              <ul className="mt-4 divide-y divide-zinc-100">
-                {order.items.map((item) => (
-                  <li key={item.id} className="flex items-center gap-4 py-4">
-                    <Link
-                      href={`/products/${item.productSlug}`}
-                      className={`h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ${focusRing}`}
-                    >
-                      {item.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center"><PackageOpen className="h-6 w-6 text-zinc-300" /></span>
-                      )}
-                    </Link>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold text-zinc-900">{item.title}</p>
-                      {item.artistName && <p className="mt-0.5 truncate text-sm text-zinc-500">{item.artistName}</p>}
-                      <p className="mt-1 text-sm text-zinc-500">{money(item.unitPrice)} × {item.quantity}</p>
-                    </div>
-                    <p className="shrink-0 text-[15px] font-medium tabular-nums text-zinc-900">{money(Number(item.unitPrice) * item.quantity)}</p>
-                  </li>
-                ))}
-              </ul>
+              <Listy items={order.items} virtual={false} rowKey="id" itemRender={(item) => (
+                <div className="acct-listy-order-row">
+                  {item.imageUrl
+                    ? <img src={item.imageUrl} alt={item.title} className="acct-order-image" />
+                    : <InboxOutlined className="text-xl text-zinc-400" />}
+                  <div className="acct-listy-order-meta">
+                    <Link href={`/shop/${item.productSlug}`}>{item.title}</Link>
+                    <span className="text-sm text-zinc-500">{item.artistName && <>{item.artistName} · </>}{money(item.unitPrice)} × {item.quantity}</span>
+                  </div>
+                  <strong>{money(Number(item.unitPrice) * item.quantity)}</strong>
+                </div>
+              )} />
             ) : (
               <div className="mt-4 flex flex-col items-center rounded-2xl bg-zinc-50 py-10 text-center">
-                <PackageOpen className="h-8 w-8 text-zinc-400" />
+                <InboxOutlined className="text-2xl text-zinc-400" />
                 <p className="mt-3 text-sm text-zinc-500">No items are listed on this order.</p>
               </div>
             )}
@@ -688,22 +651,28 @@ export function OrderDetail({ reference }: { reference: string }) {
           </section>
 
           <section className="grid gap-3 px-6 pb-8 pt-6 sm:grid-cols-2 sm:px-10" aria-label="Order details">
-            <DetailBlock icon={User} title="Customer">
-              <p>{order.customerName}</p>
-              <p className="break-all">{order.customerEmail}</p>
-              {order.customerPhone && <p>{order.customerPhone}</p>}
+            <DetailBlock icon={UserOutlined} title="Customer">
+              <Descriptions size="small" column={1} items={[
+                { key: "name", label: "Name", children: order.customerName },
+                { key: "email", label: "Email", children: order.customerEmail },
+                ...(order.customerPhone ? [{ key: "phone", label: "Phone", children: order.customerPhone }] : []),
+              ]} />
             </DetailBlock>
 
-            <DetailBlock icon={MapPin} title="Shipping to">
-              {addr?.address && <p>{addr.address}</p>}
-              {cityLine && <p>{cityLine}</p>}
-              {addr?.country && <p>{addr.country}</p>}
+            <DetailBlock icon={EnvironmentOutlined} title="Shipping to">
+              <Descriptions size="small" column={1} items={[
+                ...(addr?.address ? [{ key: "address", label: "Address", children: addr.address }] : []),
+                ...(cityLine ? [{ key: "city", label: "City / postal code", children: cityLine }] : []),
+                ...(addr?.country ? [{ key: "country", label: "Country", children: addr.country }] : []),
+              ]} />
             </DetailBlock>
 
             <div className="sm:col-span-2">
-              <DetailBlock icon={order.paymentMethod === "mobile_money" ? Smartphone : CreditCard} title="Payment">
-                <p>{pretty(order.paymentMethod)}{order.paymentProvider ? ` via ${order.paymentProvider}` : ""}</p>
-                {order.paymentPhone && <p>Paid from {order.paymentPhone}</p>}
+              <DetailBlock icon={order.paymentMethod === "mobile_money" ? MobileOutlined : CreditCardOutlined} title="Payment">
+                <Descriptions size="small" column={1} items={[
+                  { key: "method", label: "Method", children: `${pretty(order.paymentMethod)}${order.paymentProvider ? ` via ${order.paymentProvider}` : ""}` },
+                  ...(order.paymentPhone ? [{ key: "phone", label: "Payment phone", children: order.paymentPhone }] : []),
+                ]} />
               </DetailBlock>
             </div>
           </section>
@@ -711,17 +680,16 @@ export function OrderDetail({ reference }: { reference: string }) {
           {!!order.paymentAttempts?.length && (
             <section className="border-t border-zinc-100 px-6 pb-8 pt-6 sm:px-10" aria-labelledby="attempts-heading">
               <h2 id="attempts-heading" className="text-base font-semibold text-zinc-900">Payment attempts</h2>
-              <ul className="mt-3 space-y-2">
-                {order.paymentAttempts.map((a) => (
-                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-zinc-50 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-mono text-xs text-zinc-700">{a.reference}</p>
-                      <p className="mt-0.5 text-xs text-zinc-500">{formatDate(a.createdAt)}</p>
-                    </div>
-                    <StatusBadge value={a.status} />
-                  </li>
-                ))}
-              </ul>
+              <Listy items={order.paymentAttempts} virtual={false} rowKey="id" itemRender={(attempt) => (
+                <div className="acct-listy-attempt-row">
+                  <div>
+                    <Typography.Text strong>{attempt.reference}</Typography.Text>
+                    <br />
+                    <Typography.Text type="secondary">{formatDate(attempt.createdAt)}</Typography.Text>
+                  </div>
+                  <StatusBadge value={attempt.status} />
+                </div>
+              )} />
             </section>
           )}
         </article>

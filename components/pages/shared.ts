@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import type { ApiArtist, ApiCollection, ApiProduct } from "@/services/api";
 import type { CartProduct } from "@/components/site-provider";
 
-export const image = (id: string, width = 1200) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=85`;
-
 export type Product = {
   slug: string;
   title: string;
@@ -116,11 +113,11 @@ export function useResource<T>(load: () => Promise<T>, dependencies: React.Depen
 }
 
 export const nav = [
-  ["Gallery", "/gallery"],
-  ["Shop", "/shop"],
-  ["Collections", "/collections"],
+  ["Home", "/"],
   ["Artists", "/artists"],
-  ["About", "/about"],
+  ["Art Gallery", "/gallery"],
+  ["Niyo Art Café", "/cafe"],
+  ["Niyo Foundation", "/foundation"],
 ];
 
 export function groupCartItems(items: CartProduct[]) {

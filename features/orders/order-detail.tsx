@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Alert, Button, Card, Descriptions, Empty, Listy, Select, Space, Typography } from "antd";
 import { AdminFeedback, AdminPageHeader, useAdminResource } from "@/features/admin/admin-shared";
 import { StatusChip } from "@/components/admin/status-chip";
 import { toAdminRows, formatAdminDate, formatAdminPrice } from "@/lib/admin-utils";
@@ -32,67 +33,75 @@ export function OrderDetail({ reference }: { reference: string }) {
     ? order.shippingAddress as Record<string, unknown> : null;
   const items = Array.isArray(order?.items) ? order.items : [];
   const attempts = Array.isArray(order?.paymentAttempts) ? order.paymentAttempts : [];
+  const fulfillmentStatus = String(order?.fulfillmentStatus || order?.status || "");
+  const statusOptions = [
+    ...(!STATUSES.includes(fulfillmentStatus as (typeof STATUSES)[number])
+      ? [{ value: fulfillmentStatus, label: fulfillmentStatus || "Choose status", disabled: true }]
+      : []),
+    ...STATUSES.map((status) => ({ value: status, label: status })),
+  ];
   return <>
     <AdminPageHeader title={String(order?.reference || "Order details")} description={order?.createdAt ? `Created ${formatAdminDate(order.createdAt)}` : undefined}
       action={<Link className="adm-link" href="/admin/orders">Back to orders</Link>} />
     <AdminFeedback error={error || actionError} />
     {loading ? <div className="adm-skel adm-skel-row" aria-busy="true" /> : order ? (
       <div className="adm-order-detail">
-        <section className="adm-panel">
-          <h2>Order status</h2>
-          <div className="adm-row-controls"><StatusChip value={String(order.status || "")} /><StatusChip value={String(order.paymentStatus || "")} />
-            <label>Fulfillment status <select value={String(order.fulfillmentStatus || order.status || "")} disabled={busy}
-              onChange={(event) => void updateStatus(event.target.value)}>
-              {!STATUSES.includes(String(order.fulfillmentStatus || order.status || "") as (typeof STATUSES)[number]) && <option value={String(order.fulfillmentStatus || order.status || "")}>{String(order.fulfillmentStatus || order.status || "Choose status")}</option>}
-              {STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select></label>
-          </div>
-        </section>
-        <section className="adm-panel">
-          <h2>Customer</h2>
-          <dl className="adm-order-summary">
-            <div><dt>Name</dt><dd>{String(order.customerName || "—")}</dd></div>
-            <div><dt>Email</dt><dd>{String(order.customerEmail || order.email || "—")}</dd></div>
-            <div><dt>Phone</dt><dd>{String(order.customerPhone || "—")}</dd></div>
-            <div><dt>Customer user ID</dt><dd>{String(order.userId || "Not provided by API")}</dd></div>
-          </dl>
-        </section>
-        <section className="adm-panel">
-          <h2>Shipping address</h2>
-          <p>{shipping ? ["address", "city", "postcode", "country"].map((key) => shipping[key]).filter(Boolean).join(", ") : "No shipping address provided."}</p>
-        </section>
-        <section className="adm-panel">
-          <h2>Payment</h2>
-          <p>{[order.paymentMethod, order.paymentProvider].filter(Boolean).join(" · ") || "—"}</p>
-          <p>Payment phone: {String(order.paymentPhone || "—")}</p>
-          <p>Total: {formatAdminPrice(order.total, order.currency)}</p>
-          {typeof order.paymentUrl === "string" && <a href={order.paymentUrl} target="_blank" rel="noreferrer">Open payment link</a>}
-        </section>
-        <section className="adm-panel">
-          <h2>Items ({items.length})</h2>
-          {items.length ? <ul className="adm-order-list">{items.map((raw, index) => {
+        <Card title="Order status" className="adm-antd-card">
+          <Space wrap>
+            <StatusChip value={String(order.status || "")} />
+            <StatusChip value={String(order.paymentStatus || "")} />
+            <Typography.Text type="secondary">Fulfillment</Typography.Text>
+            <Select value={fulfillmentStatus} disabled={busy}
+              onChange={(status) => void updateStatus(status)}
+              options={statusOptions} />
+          </Space>
+        </Card>
+        <Card title="Customer" className="adm-antd-card">
+          <Descriptions column={{ xs: 1, sm: 2 }} items={[
+            { key: "name", label: "Name", children: String(order.customerName || "—") },
+            { key: "email", label: "Email", children: String(order.customerEmail || order.email || "—") },
+            { key: "phone", label: "Phone", children: String(order.customerPhone || "—") },
+          ]} />
+        </Card>
+        <Card title="Shipping address" className="adm-antd-card">
+          <Typography.Paragraph>{shipping ? ["address", "city", "postcode", "country"].map((key) => shipping[key]).filter(Boolean).join(", ") : "No shipping address provided."}</Typography.Paragraph>
+        </Card>
+        <Card title="Payment" className="adm-antd-card">
+          <Descriptions column={1} items={[
+            { key: "method", label: "Method", children: [order.paymentMethod, order.paymentProvider].filter(Boolean).join(" · ") || "—" },
+            { key: "phone", label: "Payment phone", children: String(order.paymentPhone || "—") },
+            { key: "total", label: "Total", children: formatAdminPrice(order.total, order.currency) },
+          ]} />
+        </Card>
+        <Card title={`Items (${items.length})`} className="adm-antd-card">
+          {items.length ? <Listy items={items} virtual={false} rowKey={(raw) => String((raw as Record<string, unknown>).id || (raw as Record<string, unknown>).productSlug)} itemRender={(raw, index) => {
             const item = raw as Record<string, unknown>;
-            return <li key={String(item.id || item.productSlug || index)}>
-              <strong>{String(item.title || item.productSlug || "Artwork")}</strong>
-              <span>{String(item.artistName || "")}</span>
-              <span>{formatAdminPrice(item.unitPrice, order.currency)} × {String(item.quantity || 0)}</span>
-            </li>;
-          })}</ul> : <p>No items provided by API.</p>}
-          <p className="adm-order-total">Total: {formatAdminPrice(order.total, order.currency)}</p>
-        </section>
-        <section className="adm-panel">
-          <h2>Payment attempts ({attempts.length})</h2>
-          {attempts.length ? <ul className="adm-order-list">{attempts.map((raw, index) => {
+            return <div className="adm-listy-row">
+              <div>
+                <Typography.Text strong>{String(item.title || item.productSlug || `Artwork ${index + 1}`)}</Typography.Text>
+                <br />
+                <Typography.Text type="secondary">{String(item.artistName || "")}</Typography.Text>
+              </div>
+              <Typography.Text>{formatAdminPrice(item.unitPrice, order.currency)} × {String(item.quantity || 0)}</Typography.Text>
+            </div>;
+          }} /> : <Empty description="No items provided by API." />}
+          <Typography.Title level={5} className="adm-order-total">Total: {formatAdminPrice(order.total, order.currency)}</Typography.Title>
+        </Card>
+        <Card title={`Payment attempts (${attempts.length})`} className="adm-antd-card">
+          {attempts.length ? <Listy items={attempts} virtual={false} rowKey={(raw) => String((raw as Record<string, unknown>).id || (raw as Record<string, unknown>).reference)} itemRender={(raw, index) => {
             const attempt = raw as Record<string, unknown>;
-            return <li key={String(attempt.id || attempt.reference || index)}>
-              <strong>{String(attempt.reference || "Payment attempt")}</strong>
-              <StatusChip value={String(attempt.status || "")} />
-              <span>{attempt.createdAt ? formatAdminDate(attempt.createdAt) : ""}</span>
-              {attempt.transactionId && <span>Transaction: {String(attempt.transactionId)}</span>}
-              {typeof attempt.paymentUrl === "string" && <a href={attempt.paymentUrl} target="_blank" rel="noreferrer">Open payment link</a>}
-            </li>;
-          })}</ul> : <p>No payment attempts provided by API.</p>}
-        </section>
+            return <div className="adm-listy-row">
+              <div>
+                <Typography.Text strong>{String(attempt.reference || `Payment attempt ${index + 1}`)}</Typography.Text>
+                {attempt.createdAt != null && <><br /><Typography.Text type="secondary">{formatAdminDate(attempt.createdAt)}</Typography.Text></>}
+              </div>
+              <Space wrap>
+                <StatusChip value={String(attempt.status || "")} />
+                {typeof attempt.transactionId === "string" && <Typography.Text>Transaction: {attempt.transactionId}</Typography.Text>}
+              </Space>
+            </div>;
+          }} /> : <Empty description="No payment attempts provided by API." />}
+        </Card>
       </div>
     ) : !error ? <p role="status">Order not found.</p> : null}
   </>;

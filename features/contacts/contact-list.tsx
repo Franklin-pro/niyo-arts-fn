@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Button, Popconfirm, Select } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import { AdminFeedback, AdminList, useAdminResource } from "@/features/admin/admin-shared";
 import { StatusChip } from "@/components/admin/status-chip";
 import { toAdminRows } from "@/lib/admin-utils";
@@ -46,13 +47,9 @@ export function ContactList() {
       summary={(row) => String(row.name || row.email || "Contact message")}
       subtitle={(row) => [row.email, row.subject, String(row.message || "").slice(0, 80)].filter(Boolean).join(" · ")}
       controls={(row) => <>
-        <StatusChip value={String(row.status || "new")} />
-        <select aria-label={`Update status for message from ${String(row.name || row.email || "")}`}
-          value={String(row.status || "new")} disabled={busyId === String(row.id || "")}
-          onChange={(event) => void updateStatus(row, event.target.value)}>
-          {STATUSES.map((status) => <option value={status} key={status}>{status}</option>)}
-        </select>
-        <button type="button" className="adm-icon-btn danger" onClick={() => void remove(row)} disabled={busyId === String(row.id || "")} aria-label="Delete message"><Trash2 /></button>
+        <Popconfirm title="Delete this message?" description="This action cannot be undone." onConfirm={() => void remove(row)} okText="Delete" okButtonProps={{ danger: true }}>
+          <Button danger type="text" icon={<DeleteOutlined />} disabled={busyId === String(row.id || "")} aria-label="Delete message" />
+        </Popconfirm>
       </>}
     />
   </>;

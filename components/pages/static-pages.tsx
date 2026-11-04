@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 
-import { CheckoutField } from "./commerce-pages";
-import { image } from "./shared";
+import { Alert, Button, Input } from "antd";
+import { ArrowRightOutlined } from "@ant-design/icons";
 import { useState } from "react";
-import { ArrowUpRight } from "lucide-react";
 import { ApiRequestError, submitContact } from "@/services/api";
 // import "./contact.css";
-
-// TODO: replace with your real address
-const CONTACT_EMAIL = "hello@niyoarts.com";
 
 const EMPTY_FORM = { name: "", email: "", subject: "", message: "" };
 
@@ -62,23 +58,23 @@ export function Contact() {
       <header className="contact-intro">
         <h1>Contact</h1>
         <p className="contact-lead">
-          Questions about an artwork, a commission or your order? Send us a message and we will reply by email.
+          Visit Niyo Arts Center and Café in Kigali, or send us a message.
         </p>
 
         <dl className="contact-details">
           <div>
-            <dt>Email</dt>
+            <dt>Address</dt>
             <dd>
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+              KG572 St, No. 25, Kacyiru, Kigali — behind the Public Library
             </dd>
           </div>
           <div>
-            <dt>Artwork enquiries</dt>
-            <dd>Include the title of the piece so we can find it quickly.</dd>
+            <dt>Phone</dt>
+            <dd><a href="tel:+250788932111">+250 788 932 111</a></dd>
           </div>
           <div>
-            <dt>Orders and shipping</dt>
-            <dd>Include your order number if you have one.</dd>
+            <dt>Opening hours</dt>
+            <dd>Daily, 8 AM–8 PM</dd>
           </div>
         </dl>
       </header>
@@ -89,16 +85,16 @@ export function Contact() {
             <h2>Message sent</h2>
             <p>{success}</p>
             {emailWarning && <p className="contact-note">{emailWarning}</p>}
-            <button type="button" className="contact-text-button" onClick={() => setSuccess("")}>
+            <Button type="link" className="contact-text-button" onClick={() => setSuccess("")}>
               Send another message
-            </button>
+            </Button>
           </div>
         ) : (
           <form className="contact-form" onSubmit={handleSubmit} noValidate={false}>
             <div className="contact-row">
               <div className="contact-field">
                 <label htmlFor="contact-name">Name</label>
-                <input
+                <Input
                   id="contact-name"
                   required
                   minLength={2}
@@ -110,7 +106,7 @@ export function Contact() {
               </div>
               <div className="contact-field">
                 <label htmlFor="contact-email">Email</label>
-                <input
+                <Input
                   id="contact-email"
                   required
                   type="email"
@@ -126,12 +122,12 @@ export function Contact() {
               <label htmlFor="contact-subject">
                 Subject <span className="contact-optional">Optional</span>
               </label>
-              <input id="contact-subject" maxLength={200} value={form.subject} onChange={set("subject")} />
+              <Input id="contact-subject" maxLength={200} value={form.subject} onChange={set("subject")} />
             </div>
 
             <div className="contact-field">
               <label htmlFor="contact-message">Message</label>
-              <textarea
+              <Input.TextArea
                 id="contact-message"
                 required
                 minLength={10}
@@ -146,15 +142,13 @@ export function Contact() {
             </div>
 
             {error && (
-              <p className="contact-error" role="alert">
-                {error}
-              </p>
+              <Alert showIcon type="error" title={error} />
             )}
 
-            <button type="submit" className="contact-submit" disabled={submitting}>
+            <Button type="primary" htmlType="submit" className="contact-submit" loading={submitting}>
               {submitting ? "Sending…" : "Send message"}
-              {!submitting && <ArrowUpRight size={18} aria-hidden="true" />}
-            </button>
+              {!submitting && <ArrowRightOutlined aria-hidden="true" />}
+            </Button>
           </form>
         )}
       </div>
@@ -162,39 +156,33 @@ export function Contact() {
   );
 }
 export function About() {
-  const principles = [
-    { title: "Curated, not crowded", text: "We show fewer works, chosen with care, so every piece has room to be seen." },
-    { title: "Artists first", text: "We work directly with artists and make sure the people who make the work are paid fairly for it." },
-    { title: "Made to last", text: "Archival materials, careful packing and honest descriptions, so what arrives is what you saw." },
+  const highlights = [
+    { title: "Artists in residence", text: "Our gallery hosts 17 artists in residence from the Great Lakes region." },
+    { title: "A creative space", text: "Niyo Arts Center gives Rwandan creative artists space to explore their talents and express themselves freely." },
+    { title: "Niyo Art Cafe", text: "Enjoy coffee from Rwanda. Forty percent of café profits support Niyo Foundation and its work with women and children living in poverty in Rwanda." },
   ];
   return (
     <>
       <section className="about-hero">
-        <p className="section-kicker">Niyo Arts / About</p>
-        <h1>Art for the way you live.</h1>
-      </section>
-      <section className="about-figure">
-        <img src={image("photo-1579783902614-a3fb3927b6a5", 2000)} alt="A painting in a quiet interior" loading="lazy" decoding="async" />
+        <p className="section-kicker">Niyo Arts Center · Kigali, Rwanda</p>
+        <h1>Art, community and creativity.</h1>
       </section>
       <section className="about-story">
         <p className="section-kicker">Our story</p>
         <div className="about-content">
           <p className="about-lead">
-            Niyo Arts is a curated gallery and online shop for original and limited edition artwork, made for homes and
-            offices as much as for walls in galleries.
+            Niyo Arts Center is a space for Rwandan creative artists to explore their talents and express themselves freely.
           </p>
           <p>
-            We work with artists to bring their work to collectors of every level. Each piece is selected for its
-            presence, materiality, and the story it carries into your space.
+            The gallery is home to 17 artists in residence from the Great Lakes region. Visit to experience their work and Niyo Art Cafe.
           </p>
-          <p>We believe the right artwork changes a room, then quietly changes you.</p>
           <Link className="text-link" href="/contact">
-            Get in touch <ArrowUpRight />
+            Find us in Kigali <ArrowRightOutlined />
           </Link>
         </div>
       </section>
       <section className="about-principles">
-        {principles.map((p) => (
+        {highlights.map((p) => (
           <div key={p.title}>
             <h3>{p.title}</h3>
             <p>{p.text}</p>
@@ -203,10 +191,10 @@ export function About() {
       </section>
       <section className="about-cta">
         <h2>
-          Find something to <em>live with.</em>
+          Visit Niyo Arts Center.
         </h2>
-        <Link className="button-link" href="/shop">
-          Explore the shop <ArrowUpRight />
+        <Link className="button-link" href="/contact">
+          Get directions and contact us <ArrowRightOutlined />
         </Link>
       </section>
     </>
@@ -222,7 +210,7 @@ export function Generic({ title, eyebrow, children }: { title: string; eyebrow: 
           <>
             <p>We are making space for better ways to experience art — online and in the rooms where it belongs.</p>
             <Link className="text-link" href="/shop">
-              Explore the collection <ArrowUpRight />
+              Explore the collection <ArrowRightOutlined />
             </Link>
           </>
         )}
