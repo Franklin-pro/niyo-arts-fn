@@ -52,7 +52,7 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   const artist = artistRecord(product?.artist);
   const productImage = imageUrl(product?.imageUrl);
-  const artistImage = imageUrl(artist?.imageUrl);
+  const artistImage = imageUrl(artist?.imageUrl) || "/placeholder-user.jpg";
   const artistId = text(product?.artistId || artist?.id, "");
   const hiddenFields = new Set([
     "artist", "artistId", "imageUrl", "title", "slug", "type", "category",

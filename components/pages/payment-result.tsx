@@ -196,28 +196,6 @@ function PaymentResultInner() {
                 </Button>
               )}
 
-              {status === "success" && (
-                <Button
-                  type="primary"
-                  onClick={() => router.push("/orders")}
-                  block
-                  style={{ backgroundColor: GOLD, borderColor: GOLD }}
-                >
-                  <ProfileOutlined />
-                  View my orders
-                  <ArrowRightOutlined />
-                </Button>
-              )}
-
-              {status !== "success" && (
-                <Button
-                  onClick={() => router.push("/orders")}
-                  block
-                >
-                  View my orders
-                </Button>
-              )}
-
               <Button
                 type="text"
                 onClick={() => router.push("/")}

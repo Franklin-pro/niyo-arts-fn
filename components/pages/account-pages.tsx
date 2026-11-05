@@ -163,7 +163,7 @@ const COPY: Record<Exclude<Mode, "account">, { title: string; sub: string; art: 
 
 function safeReturnTo() {
   const value = new URLSearchParams(window.location.search).get("returnTo");
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/account";
+  return value?.startsWith("/") && !value.startsWith("//") ? value : "/admin";
 }
 
 function passwordScore(pw: string) {
@@ -492,13 +492,13 @@ export function AccountPage({ mode }: { mode: Mode }) {
               </div>
             )}
 
-            {mode === "login" && (
+            {/* {mode === "login" && (
               <div className="-mt-1 text-right">
                 <Link href="/forgot-password" className={`auth-forgot rounded text-sm font-medium text-zinc-500 hover:text-zinc-900 ${focusRing}`}>
                   Forgot password?
                 </Link>
               </div>
-            )}
+            )} */}
 
             {error && <Alert showIcon type="error" title={error} />}
 
@@ -508,7 +508,7 @@ export function AccountPage({ mode }: { mode: Mode }) {
           </form>
 
           <p className="auth-switch mt-6 text-center text-sm text-zinc-500">
-            {mode === "login" && <>New to Niyo? <Link className="font-semibold text-zinc-900 underline-offset-4 hover:underline" href="/register">Create an account</Link></>}
+            {/* {mode === "login" && <>New to Niyo? <Link className="font-semibold text-zinc-900 underline-offset-4 hover:underline" href="/register">Create an account</Link></>} */}
             {mode === "register" && <>Already have an account? <Link className="font-semibold text-zinc-900 underline-offset-4 hover:underline" href="/login">Sign in</Link></>}
             {(mode === "forgot-password" || mode === "reset-password") && <>Remembered it? <Link className="font-semibold text-zinc-900 underline-offset-4 hover:underline" href="/login">Back to sign in</Link></>}
           </p>

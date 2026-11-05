@@ -3,23 +3,40 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { useState } from "react";
 import { Alert, Badge, Button, Drawer, Menu } from "antd";
 import {
-  HeartOutlined, MenuOutlined, SearchOutlined, ShoppingOutlined, UserOutlined,
+  SearchOutlined, ShoppingOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { useAuth, useCart } from "@/components/site-provider";
-import { getHealth } from "@/services/api";
-import { useResource, nav } from "./pages/shared";
-import { Listing, ProductPage, Collections, Artists } from "./pages/catalog-pages";
-import { Cart, Checkout } from "./pages/commerce-pages";
-import { AccountPage, OrderDetail } from "./pages/account-pages";
-import { About, Contact, Generic } from "./pages/static-pages";
-import { HomePage } from "./pages/home-page";
-import PaymentResult from "./pages/payment-result";
-import { FoundationPage } from "./pages/foundation";
-import { CafePage } from "./pages/cafe";
+import { nav } from "./pages/shared";
+
+const RouteLoading = () => <p className="page-intro" role="status">Loading page…</p>;
+const HomePage = dynamic(() => import("./pages/home-page").then((module) => module.HomePage), { loading: RouteLoading });
+const { Listing, ProductPage, Collections, Artists } = {
+  Listing: dynamic(() => import("./pages/catalog-pages").then((module) => module.Listing), { loading: RouteLoading }),
+  ProductPage: dynamic(() => import("./pages/catalog-pages").then((module) => module.ProductPage), { loading: RouteLoading }),
+  Collections: dynamic(() => import("./pages/catalog-pages").then((module) => module.Collections), { loading: RouteLoading }),
+  Artists: dynamic(() => import("./pages/catalog-pages").then((module) => module.Artists), { loading: RouteLoading }),
+};
+const { Cart, Checkout } = {
+  Cart: dynamic(() => import("./pages/commerce-pages").then((module) => module.Cart), { loading: RouteLoading }),
+  Checkout: dynamic(() => import("./pages/commerce-pages").then((module) => module.Checkout), { loading: RouteLoading }),
+};
+const { AccountPage, OrderDetail } = {
+  AccountPage: dynamic(() => import("./pages/account-pages").then((module) => module.AccountPage), { loading: RouteLoading }),
+  OrderDetail: dynamic(() => import("./pages/account-pages").then((module) => module.OrderDetail), { loading: RouteLoading }),
+};
+const { About, Contact, Generic } = {
+  About: dynamic(() => import("./pages/static-pages").then((module) => module.About), { loading: RouteLoading }),
+  Contact: dynamic(() => import("./pages/static-pages").then((module) => module.Contact), { loading: RouteLoading }),
+  Generic: dynamic(() => import("./pages/static-pages").then((module) => module.Generic), { loading: RouteLoading }),
+};
+const PaymentResult = dynamic(() => import("./pages/payment-result"), { loading: RouteLoading });
+const FoundationPage = dynamic(() => import("./pages/foundation").then((module) => module.FoundationPage), { loading: RouteLoading });
+const CafePage = dynamic(() => import("./pages/cafe").then((module) => module.CafePage), { loading: RouteLoading });
 
 function Header({ cart, open, onMenu, user, authLoading }: { cart: number; open: boolean; onMenu: () => void; user: ReturnType<typeof useAuth>["user"]; authLoading: boolean }) {
   const navItems = nav.map(([label, href]) => ({ key: href, label: <Link href={href}>{label}</Link> }));
@@ -37,9 +54,9 @@ function Header({ cart, open, onMenu, user, authLoading }: { cart: number; open:
           <Link className="header-login" href="/login">Login</Link>
         ) : null}
         {/* <Button href="/account/wishlist" type="text" aria-label="Wishlist" icon={<HeartOutlined />} /> */}
-        {/* <Badge count={cart} size="small" offset={[-3, 5]}>
+        <Badge count={cart} size="small" offset={[-3, 5]}>
           <Button href="/cart" type="text" aria-label={`Cart, ${cart} items`} icon={<ShoppingOutlined />} />
-        </Badge> */}
+        </Badge>
         {/* <Button className="menu-toggle" type="text" onClick={onMenu}
           aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open}
           icon={<MenuOutlined />} /> */}
@@ -112,8 +129,6 @@ export default function SiteApp({ path }: { path: string }) {
   const route = path.replace(/^\//, "").split("/");
   const isHome = path === "/" || !path;
   const showStorefrontChrome = route[0] !== "admin";
-  const { error: healthError } = useResource(getHealth, []);
-
   let body: React.ReactNode;
 
   if (isHome) {
@@ -189,7 +204,6 @@ export default function SiteApp({ path }: { path: string }) {
       {showStorefrontChrome && (
         <>
           <Header cart={cart.length} open={menu} onMenu={() => setMenu(!menu)} user={user} authLoading={authLoading} />
-          {healthError && <Alert type="error" showIcon title="Service unavailable" description={healthError} />}
           {cartError && (
             <Alert
               type="error"

@@ -34,8 +34,12 @@ export function ArtistDetail({ slug }: { slug: string }) {
     () => adminApi.artists.get(slug).then(({ data }) => toAdminRows([data])[0] ?? null),
     [slug],
   );
+  const { data: allProducts, error: productsError, loading: productsLoading } = useAdminResource(
+    () => adminApi.products.list().then(({ data }) => toAdminRows(data)),
+    [slug],
+  );
 
-  if (loading) {
+  if (loading || productsLoading) {
     return (
       <>
         <AdminPageHeader title="Artist details" action={<Link href="/admin/artists"><Button icon={<ArrowLeftOutlined />}>Back to artists</Button></Link>} />
@@ -45,9 +49,25 @@ export function ArtistDetail({ slug }: { slug: string }) {
   }
 
   const portrait = imageUrl(artist?.imageUrl);
-  const products = Array.isArray(artist?.products)
+  const embeddedProducts = Array.isArray(artist?.products)
     ? artist.products.filter((item): item is AdminRecord => Boolean(item) && typeof item === "object")
     : [];
+  const artistId = String(artist?.id || "");
+  const linkedProducts = (allProducts ?? []).filter((product) => {
+    const productArtist = product.artist && typeof product.artist === "object"
+      ? product.artist as AdminRecord
+      : null;
+    return Boolean(artistId) && (
+      String(product.artistId || "") === artistId
+      || String(productArtist?.id || "") === artistId
+    );
+  });
+  const products = [...new Map(
+    [...embeddedProducts, ...linkedProducts].map((product, index): [string, AdminRecord] => [
+      String(product.id || product.slug || index),
+      product,
+    ]),
+  ).values()];
   const hiddenFields = new Set(["id", "slug", "name", "location", "medium", "bio", "imageUrl", "products", "workCount", "startingPrice"]);
   const details = Object.entries(artist ?? {})
     .filter(([key, value]) => !hiddenFields.has(key) && value !== null && value !== undefined && value !== "")
@@ -56,7 +76,7 @@ export function ArtistDetail({ slug }: { slug: string }) {
       label: fieldLabel(key),
       children: displayField(key, value),
     }));
-  const workCount = typeof artist?.workCount === "number" ? artist.workCount : products.length;
+  const workCount = products.length;
 
   return (
     <>
@@ -69,7 +89,7 @@ export function ArtistDetail({ slug }: { slug: string }) {
           </Space>
         }
       />
-      <AdminFeedback error={error} />
+      <AdminFeedback error={[error, productsError].filter(Boolean).join(" ")} />
       {artist ? (
         <div className="adm-artist-detail">
           <Card className="adm-antd-card adm-artist-showcase" variant="borderless">
@@ -82,9 +102,12 @@ export function ArtistDetail({ slug }: { slug: string }) {
                   onError={() => setFailedImageUrl(portrait)}
                 />
               ) : (
-                <Empty
-                  image={<UserOutlined />}
-                  description={portrait ? "Artist image could not be loaded" : "No artist image provided"}
+                <Avatar
+                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQe4X2tGuNWz6UBekSvkRrCgehhBT0bq-FJP-Uxzk0Dkg&s=10"
+                  icon={<UserOutlined />}
+                  shape="square"
+                  size={320}
+                  alt={text(artist.name, "Artist portrait")}
                 />
               )}
             </div>

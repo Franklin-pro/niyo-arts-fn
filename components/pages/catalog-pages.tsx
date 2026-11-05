@@ -14,7 +14,20 @@ import { formatPrice, toArtist, toCollection, toProduct, useResource } from "./s
 
 export function ProductCard({ p, onAdd, adding }: { p: Product; onAdd: (p: Product) => Promise<void>; adding: boolean }) {
   const [liked, setLiked] = useState(false);
+  const [addPending, setAddPending] = useState(false);
   const { message } = App.useApp();
+  const isAdding = adding || addPending;
+  const handleAdd = async () => {
+    if (isAdding) return;
+    setAddPending(true);
+    try {
+      await onAdd(p);
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : "Unable to add this work to your cart.");
+    } finally {
+      setAddPending(false);
+    }
+  };
   return (
     <article className="art-card">
       <div className="art-image">
@@ -54,10 +67,10 @@ export function ProductCard({ p, onAdd, adding }: { p: Product; onAdd: (p: Produ
           <strong>{formatPrice(p.price, p.currency)}</strong>
         </div>
       </Link>
-      <Button className="quick-add" type="primary" loading={adding}
-        onClick={() => { void onAdd(p).catch((reason: unknown) => message.error(reason instanceof Error ? reason.message : "Unable to add this work to your cart.")); }}
-        icon={!adding ? <ArrowUpOutlined /> : undefined}>
-        {adding ? "Adding…" : "Add & checkout"}
+      <Button className="quick-add" type="primary" loading={isAdding} disabled={isAdding}
+        onClick={() => { void handleAdd(); }}
+        icon={!isAdding ? <ArrowUpOutlined /> : undefined}>
+        {isAdding ? "Adding…" : "Add & checkout"}
       </Button>
     </article>
   );
@@ -112,12 +125,12 @@ export function Listing({ mode = "shop", onAdd, adding }: { mode?: string; onAdd
         <div className="toolbar">
           <Input className="search-field antd-catalog-search" allowClear maxLength={120} prefix={<SearchOutlined />}
             value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search works or artists" />
-          <div className="filter-row">
+          {/* <div className="filter-row">
             <Radio.Group value={category} optionType="button" buttonStyle="solid" options={["All", "Abstract", "Painting", "Digital", "Photography"].map((value) => ({ label: value, value }))}
               onChange={(event) => { setCategory(event.target.value); setPage(1); }} />
             <Select aria-label="Sort artwork" value={sort} onChange={(value) => { setSort(value); setPage(1); }}
               options={["Featured", "Price: low to high", "Price: high to low"].map((value) => ({ label: value, value }))} />
-          </div>
+          </div> */}
         </div>
         {error && <Alert showIcon type="error" title={error} />}
         {loading ? (
@@ -147,10 +160,23 @@ export function Listing({ mode = "shop", onAdd, adding }: { mode?: string; onAdd
 }
 export function ProductPage({ slug, onAdd, adding }: { slug: string; onAdd: (p: Product) => Promise<void>; adding: boolean }) {
   const { message } = App.useApp();
+  const [addPending, setAddPending] = useState(false);
   const { data: p, error, loading } = useResource(
     () => getProduct(slug).then((result) => toProduct(result.data)),
     [slug],
   );
+  const isAdding = adding || addPending;
+  const handleAdd = async () => {
+    if (isAdding || !p) return;
+    setAddPending(true);
+    try {
+      await onAdd(p);
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : "Unable to add this work to your cart.");
+    } finally {
+      setAddPending(false);
+    }
+  };
   if (loading) return <p className="page-intro" role="status">Loading artwork…</p>;
   if (error || !p)
     return (
@@ -168,7 +194,7 @@ export function ProductPage({ slug, onAdd, adding }: { slug: string; onAdd: (p: 
       </Link>
       <div className="product-layout">
         <div className="product-gallery">
-          <img src={p.image} alt={p.title} />
+          {/* <img src={p.image} alt={p.title} /> */}
           <img src={p.image} alt={`${p.title} detail`} />
         </div>
         <div className="product-info">
@@ -185,16 +211,12 @@ export function ProductPage({ slug, onAdd, adding }: { slug: string; onAdd: (p: 
           <p className="product-description">
             {p.description}
           </p>
-          <Button className="button-link add-button" type="primary" loading={adding}
-            onClick={() => { void onAdd(p).catch((reason: unknown) => message.error(reason instanceof Error ? reason.message : "Unable to add this work to your cart.")); }}
-            icon={!adding ? <ArrowUpOutlined /> : undefined}>
-            {adding ? "Adding…" : "Add & checkout"}
+          <Button className="button-link add-button" type="primary" loading={isAdding} disabled={isAdding}
+            onClick={() => { void handleAdd(); }}
+            icon={!isAdding ? <ArrowUpOutlined /> : undefined}>
+            {isAdding ? "Adding…" : "Add & checkout"}
           </Button>
           <div className="accordions">
-            <details open>
-              <summary>Details <DownOutlined /></summary>
-              <p>{p.description}</p>
-            </details>
             <details>
               <summary>Delivery & returns <DownOutlined /></summary>
               <p>Carefully packed and dispatched within 3–5 business days.</p>
@@ -216,12 +238,12 @@ export function Collections({ slug }: { slug?: string }) {
   return (
     <>
       <section className="page-intro">
-        <p className="section-kicker">Niyo Arts / Collections</p>
+        <p className="section-kicker">Niyo Arts / Curated Works</p>
         <h1>{slug ? data?.[0]?.title || "Collection" : "Ways of seeing."}</h1>
         <p>Themed selections from across the gallery, curated to help you find work that fits the way you live.</p>
       </section>
       <section className="collections-page">
-        {loading && <p role="status">Loading collections…</p>}
+        {loading && <p role="status">Loading Curated Works…</p>}
         {error && <p className="field-error" role="alert">{error}</p>}
         {data?.map((c, i) => (
             <article className={`collection-row ${i % 2 ? "reverse" : ""}`} key={c.title}>
@@ -244,7 +266,7 @@ export function Collections({ slug }: { slug?: string }) {
                     </Link>
                   ))}
                 </div>
-                <Link className="text-link" href={`/collections/${c.slug}`}>Shop the collection <ArrowUpOutlined /></Link>
+                <Link className="text-link" href={`/collections/${c.slug}`}>Shop the Curated Works <ArrowUpOutlined /></Link>
               </div>
             </article>
         ))}

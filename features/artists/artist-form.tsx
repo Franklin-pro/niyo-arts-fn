@@ -52,7 +52,7 @@ export function ArtistForm({ slug }: { slug?: string }) {
       <Form.Item name="slug" label="Slug" rules={[{ required: true }, { max: 180 }]}><Input placeholder="Enter artist slug" /></Form.Item>
       <Form.Item name="location" label="Location" rules={[{ required: true }]}><Input placeholder="Enter artist location" /></Form.Item>
       <Form.Item name="medium" label="Medium" rules={[{ required: true }]}><Input placeholder="Enter artist medium" /></Form.Item>
-      <Form.Item name="imageUrl" label="Portrait image" className="adm-feature-form-wide" rules={[{ required: true, message: "Upload a portrait image." }, { type: "url", message: "The uploaded image URL is invalid." }]}>
+      <Form.Item name="imageUrl" label="Portrait image (optional)" className="adm-feature-form-wide" rules={[{ type: "url", message: "The uploaded image URL is invalid." }]}>
         <CloudinaryImageUpload disabled={busy} onUploadingChange={setUploading} />
       </Form.Item>
       <Form.Item name="bio" label="Bio" className="adm-feature-form-wide" rules={[{ required: true }]}><Input.TextArea rows={5} placeholder="Enter artist bio ..." /></Form.Item>

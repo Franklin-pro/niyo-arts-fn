@@ -41,19 +41,29 @@ export function DashboardOverview() {
   return <>
     <AdminPageHeader title={`${greeting}, ${firstName}`} description="Here’s what’s happening in the gallery today." />
     {error && <Alert showIcon type="error" title={error} />}
+
+    {/* 5-card grid */}
     <Row gutter={[16, 16]} className="adm-stat-grid" aria-busy={loading}>
       {sections.map(({ key, label, href, icon, hint }) => {
         const count = data?.[key].length ?? 0;
         const subtitle = key === "orders" ? `${openOrders} open` : key === "contacts" ? `${newMessages} new` : hint;
-        return <Col xs={12} md={8} xl={key === "orders" || key === "contacts" ? 4 : 4} key={key}>
-          <Link className="adm-stat-link" href={href}>
-            <Card hoverable className="adm-antd-stat">
-              <Statistic title={label} value={loading ? 0 : count} prefix={icon} suffix={<Typography.Text type="secondary">{subtitle}</Typography.Text>} />
-            </Card>
-          </Link>
-        </Col>;
+        return (
+          <Col xs={24} sm={12} md={8} lg={8} xl={4} xxl={4} key={key} style={{ flex: "1 0 20%", maxWidth: "20%" }}>
+            <Link className="adm-stat-link" href={href}>
+              <Card hoverable className="adm-antd-stat">
+                <Statistic
+                  title={label}
+                  value={loading ? 0 : count}
+                  prefix={icon}
+                  suffix={<Typography.Text type="secondary">{subtitle}</Typography.Text>}
+                />
+              </Card>
+            </Link>
+          </Col>
+        );
       })}
     </Row>
+
     <Row gutter={[16, 16]} className="adm-dashboard-panels">
       {(["orders", "contacts"] as const).map((key) => {
         const label = key === "orders" ? "Latest orders" : "Latest messages";

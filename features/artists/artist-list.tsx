@@ -28,7 +28,7 @@ export function ArtistList() {
     detailHref={(row) => `/admin/artists/${encodeURIComponent(String(row.slug || ""))}`}
     summary={(row) => String(row.name || row.slug || "Artist")}
     subtitle={(row) => [row.medium, row.location].filter(Boolean).join(" · ")}
-    image={(row) => String(row.imageUrl || "")}
+    image={(row) => String(row.imageUrl || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQe4X2tGuNWz6UBekSvkRrCgehhBT0bq-FJP-Uxzk0Dkg&s=10")}
     controls={(row) => <Popconfirm title="Delete or deactivate this artist?" description={String(row.name || row.slug || "")}
       onConfirm={() => void remove(String(row.slug || ""))} okText="Continue" okButtonProps={{ danger: true }}>
       <Button type="text" danger icon={<DeleteOutlined />} loading={busySlug === String(row.slug || "")}

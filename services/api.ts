@@ -5,7 +5,7 @@ export interface ApiArtist {
   location: string;
   medium: string;
   bio?: string;
-  imageUrl: string;
+  imageUrl?: string;
   products: ApiProduct[];
   workCount?: number;
   startingPrice?: number | null;
@@ -347,7 +347,7 @@ export interface AdminArtistInput {
   location: string;
   medium: string;
   bio: string;
-  imageUrl: string;
+  imageUrl?: string;
 }
 
 export interface AdminCollectionInput {

@@ -104,27 +104,17 @@ export function AdminList({
         );
       },
     },
-    {
-      title: "Status",
-      key: "status",
-      responsive: ["sm"],
-      render: (_, row) => {
-        const status = String(row.fulfillmentStatus || row.paymentStatus || row.status || "");
-        return status ? <StatusChip value={status} /> : <Typography.Text type="secondary">
-          {row.isActive === true ? <Badge text="active" showZero color="#006400" /> : <Badge text="Sold out" showZero color="#faad14" />}
-        </Typography.Text>;
-      },
-    },
-    {
-      title: "Price",
-      key: "price",
-      align: "right",
-      responsive: ["sm"],
-      render: (_, row) => {
-        const price = formatAdminPrice(row.price, row.currency);
-        return price ? <Typography.Text>{price}</Typography.Text> : <Typography.Text type="secondary">—</Typography.Text>;
-      },
-    },
+
+    // {
+    //   title: "location",
+    //   key: "location",
+    //   align: "right",
+    //   responsive: ["sm"],
+    //   render: (_, row) => {
+    //     const location = row.location;
+    //     return location ? <Typography.Text>{location}</Typography.Text> : <Typography.Text type="secondary">—</Typography.Text>;
+    //   },
+    // },
     {
       title: "Created",
       key: "createdAt",

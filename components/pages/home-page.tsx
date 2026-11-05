@@ -94,7 +94,7 @@ export function HomePage({
           src={cafeHero}
           alt="Inside Niyo Art Cafe"
           fill
-          sizes="(min-width: 960px) 508vw, 100vw"
+          sizes="(min-width: 960px) 58vw, 100vw"
           style={{ objectFit: "cover" }}
         />
         <div className="image-caption">
@@ -136,9 +136,9 @@ export function HomePage({
         <div className="section-heading">
           <div>
             <p className="section-kicker">Niyo Arts Center</p>
-            <h2>Collections</h2>
+            <h2>Curated Works</h2>
           </div>
-          <Link className="text-link" href="/collections">View collections <ArrowRightOutlined /></Link>
+          <Link className="text-link" href="/collections">View Curated Works <ArrowRightOutlined /></Link>
         </div>
         <div className="collection-grid">
           {data?.collections.slice(0, 2).map((collection, index) => (

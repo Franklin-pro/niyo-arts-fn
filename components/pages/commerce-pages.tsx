@@ -138,8 +138,6 @@ export function Checkout({
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(true);
   const [countriesError, setCountriesError] = useState("");
-  const [method, setMethod] = useState<"mobile" | "card">("card");
-  const [network, setNetwork] = useState<"MTN Mobile Money" | "Airtel Money">("MTN Mobile Money");
   const [contact, setContact] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -150,7 +148,6 @@ export function Checkout({
     country: "Rwanda",
   });
   const [cardProvider, setCardProvider] = useState("");
-  const [momo, setMomo] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingReference, setPendingReference] = useState("");
@@ -265,12 +262,6 @@ export function Checkout({
             if (contact.city.trim().length < 2 || contact.city.length > 120) nextErrors.city = "Enter a city between 2 and 120 characters.";
             if (contact.country.trim().length < 2 || contact.country.length > 120) nextErrors.country = "Enter a valid country.";
             if (contact.postcode.length > 30) nextErrors.postcode = "Postal code must be 30 characters or fewer.";
-            if (method === "mobile" && (momo.trim().length < 5 || momo.length > 40)) nextErrors.momo = "Enter a valid mobile money number.";
-            if (method === "mobile" && contact.country !== "Rwanda") {
-              nextErrors.form = "Mobile money checkout is currently available for Rwanda only. Choose card for other destinations.";
-            } else if (method === "mobile" && currency !== "RWF") {
-              nextErrors.form = "Rwanda mobile money requires all cart items to be priced in RWF.";
-            }
             if (grouped.some(({ product }) => product.unavailable)) {
               nextErrors.form = "Remove unavailable artwork before checking out.";
             }
@@ -280,10 +271,6 @@ export function Checkout({
 
             setIsSubmitting(true);
             try {
-              let phoneDigits = momo.replace(/\D/g, "");
-              if (phoneDigits.startsWith("250")) phoneDigits = phoneDigits.slice(3);
-              if (phoneDigits.startsWith("0")) phoneDigits = phoneDigits.slice(1);
-              const paymentPhone = `+250${phoneDigits}`;
               const checkoutKey = idempotencyKey || crypto.randomUUID();
               if (!idempotencyKey) setIdempotencyKey(checkoutKey);
               const result = await createOrder({
@@ -301,9 +288,7 @@ export function Checkout({
                   country: contact.country.trim(),
                   ...(contact.postcode.trim() ? { postcode: contact.postcode.trim() } : {}),
                 },
-                payment: method === "mobile"
-                  ? { method: "mobile_money", provider: network, phone: paymentPhone }
-                  : { method: "card", ...(cardProvider.trim() ? { provider: cardProvider.trim() } : {}) },
+                payment: { method: "card", ...(cardProvider.trim() ? { provider: cardProvider.trim() } : {}) },
               }, checkoutKey);
               orderPlaced();
               setPendingReference(result.data.reference);
@@ -444,7 +429,8 @@ export function Checkout({
       {
         value: "mobile",
         title: "Mobile money",
-        hint: "MTN or Airtel · Rwanda",
+        hint: "Temporarily unavailable",
+        disabled: true,
         brands: (
           <span className="payment-brands">
             <span className="brand-mtn">MTN</span>
@@ -453,17 +439,13 @@ export function Checkout({
         ),
       },
     ].map((option) => (
-      <label className="pay-option" key={option.value}>
+      <label className={`pay-option${option.disabled ? " pay-option-disabled" : ""}`} key={option.value}>
         <input
           type="radio"
           name="payment-method"
           value={option.value}
-          checked={method === option.value}
-          onChange={(event) => {
-            if (event.target.value === "card" || event.target.value === "mobile") {
-              setMethod(event.target.value);
-            }
-          }}
+          defaultChecked={option.value === "card"}
+          disabled={option.disabled}
         />
         <span className="pay-option-body">
           <strong>{option.title}</strong>
@@ -474,75 +456,13 @@ export function Checkout({
     ))}
   </div>
 
-  <div key={method} className="pay-details-panel">
-    {method === "mobile" ? (
-      <div className="co-grid pay-details">
-        <div className="co-field span-2">
-          <span>Network</span>
-          <div className="segmented" role="radiogroup" aria-label="Mobile money network">
-            {["MTN Mobile Money", "Airtel Money"].map((value) => (
-              <label key={value}>
-                <input
-                  type="radio"
-                  name="momo-network"
-                  value={value}
-                  checked={network === value}
-                  onChange={(event) => {
-                    if (event.target.value === "MTN Mobile Money" || event.target.value === "Airtel Money") {
-                      setNetwork(event.target.value);
-                    }
-                  }}
-                />
-                <span>{value.replace(" Mobile Money", "").replace(" Money", "")}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="co-field span-2">
-          <span>Mobile money number</span>
-          <div className={`phone-input${errors.momo ? " has-error" : ""}`}>
-            <span aria-hidden="true">+250</span>
-            <input
-              aria-label="Mobile money number"
-              aria-invalid={errors.momo ? "true" : undefined}
-              aria-describedby={errors.momo ? "momo-error" : "momo-hint"}
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel-national"
-              placeholder="78X XXX XXX"
-              value={momo}
-              onChange={(e) => {
-                setMomo(e.target.value);
-                setErrors((current) => {
-                  const next = { ...current };
-                  delete next.momo;
-                  return next;
-                });
-              }}
-            />
-          </div>
-          {errors.momo ? (
-            <small id="momo-error" className="field-error">{errors.momo}</small>
-          ) : (
-            <small id="momo-hint" className="payment-note">
-              You'll receive a prompt on this number to approve the payment.
-            </small>
-          )}
-        </div>
-
-        <p className="payment-note span-2">
-          Mobile money requires the cart currency to be <strong>RWF</strong>.
-        </p>
-      </div>
-    ) : (
-      <div className="co-grid pay-details">
-        <p className="payment-note span-2">
-          You'll be redirected to a secure hosted checkout to enter your card details.
-          This site never stores card numbers.
-        </p>
-      </div>
-    )}
+  <div className="pay-details-panel">
+    <div className="co-grid pay-details">
+      <p className="payment-note span-2">
+        You'll be redirected to a secure hosted checkout to enter your card details.
+        This site never stores card numbers.
+      </p>
+    </div>
   </div>
 </div>
 

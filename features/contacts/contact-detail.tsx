@@ -147,7 +147,7 @@ export function ContactDetail({ id }: { id: string }) {
           <Empty description="Message not found." />
         </Card>
       ) : contact ? (
-        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+        <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
           {/* Header card: sender + status + quick actions */}
           <Card className="adm-antd-card">
             <div className="adm-contact-header">
