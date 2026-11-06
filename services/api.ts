@@ -45,6 +45,51 @@ interface ApiResponse<T> {
   data: T;
 }
 
+export interface AdminDashboardOverview {
+  period: { from: string; to: string };
+  summary: {
+    totalOrders: number;
+    paidOrders: number;
+    pendingPayments: number;
+    failedPayments: number;
+    cancelledOrders: number;
+    refundedOrders: number;
+    salesByCurrency: { currency: string; amount: string }[];
+  };
+  ordersByStatus: { status: string; count: number }[];
+  payments: {
+    byStatus: {
+      status: string;
+      currency: string;
+      paymentMethod: string;
+      count: number;
+      amount: string;
+    }[];
+    attemptsByStatus: { status: string; count: number }[];
+  };
+  salesByDay: {
+    date: string;
+    currency: string;
+    orderCount: number;
+    paidOrders: number;
+    revenue: string;
+  }[];
+  catalog: { activeProducts: number; inactiveProducts: number; artists: number };
+  customers: { total: number };
+  contacts: { new: number };
+  recentOrders: {
+    reference: string;
+    customerName: string;
+    customerEmail: string;
+    total: string;
+    currency: string;
+    status: string;
+    paymentStatus: string;
+    createdAt: string;
+    items: { title: string; quantity: number; unitPrice: string; productKind: string }[];
+  }[];
+}
+
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -359,6 +404,8 @@ export interface AdminCollectionInput {
   productSlugs: string[];
 }
 
+
+
 async function adminRequest<T>(path: string, method = "GET", body?: unknown) {
   return request<T>(`/admin${path}`, {
     method,
@@ -367,6 +414,9 @@ async function adminRequest<T>(path: string, method = "GET", body?: unknown) {
 }
 
 export const adminApi = {
+  adminDashboard: {
+    overview: () => adminRequest<ApiResponse<AdminDashboardOverview>>("/dashboard"),
+  },
   products: {
     list: () => adminRequest<ApiResponse<ApiProduct[]>>("/products"),
     create: (input: AdminProductInput) => adminRequest<ApiResponse<ApiProduct>>("/products", "POST", input),

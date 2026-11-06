@@ -87,18 +87,22 @@ function Footer() {
         <div>
           <p>Info</p>
           <Link href="/about">About Niyo</Link>
-          <Link href="/shipping">Shipping & returns</Link>
+          {/* <Link href="/shipping">Shipping & returns</Link> */}
           <Link href="/contact">Contact</Link>
         </div>
         <div>
           <p>Follow</p>
-          <Link href="#">Instagram</Link>
-          <Link href="#">Twitter</Link>
+          <Link href="https://www.instagram.com/niyoartscenter/" target="_blank" rel="noopener noreferrer">
+            Instagram
+          </Link>
+          <Link href="https://twitter.com/niyoartscenter" target="_blank" rel="noopener noreferrer">
+            Twitter
+          </Link>
         </div>
       </div>
       <div className="footer-bottom">
         <span>&copy; {new Date().getFullYear()} Niyo Arts all rights reserved</span>
-        <span>KG572 St, No. 25, Kacyiru · +250 788 932 111</span>
+        <span>25 KG 572 street, Kigali, Rwanda · +250 788 932 111</span>
         <span>USD / EN</span>
       </div>
     </footer>

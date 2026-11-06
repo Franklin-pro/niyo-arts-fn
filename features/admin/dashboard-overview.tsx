@@ -2,99 +2,111 @@
 
 import Link from "next/link";
 import { useAuth } from "@/components/site-provider";
-import { Alert, Card, Col, Empty, Listy, Row, Skeleton, Statistic, Typography } from "antd";
+import { Alert, Card, Col, Empty, Row, Skeleton, Statistic, Table, Typography } from "antd";
+import type { TableColumnsType } from "antd";
 import { AdminPageHeader, useAdminResource } from "@/features/admin/admin-shared";
 import { StatusChip } from "@/components/admin/status-chip";
-import { toAdminRows, type AdminRecord } from "@/lib/admin-utils";
-import { adminApi } from "@/services/api";
-import { AppstoreOutlined, ArrowRightOutlined, MailOutlined, ShoppingOutlined, UserOutlined } from "@ant-design/icons";
-
-const sections = [
-  { key: "products", label: "Arts", href: "/admin/products", icon: <AppstoreOutlined />, hint: "Works for sale" },
-  { key: "artists", label: "Artists", href: "/admin/artists", icon: <UserOutlined />, hint: "Artist profiles" },
-  { key: "collections", label: "Collections", href: "/admin/collections", icon: <AppstoreOutlined />, hint: "Curated groups" },
-  { key: "orders", label: "Orders", href: "/admin/orders", icon: <ShoppingOutlined />, hint: "Customer orders" },
-  { key: "contacts", label: "Messages", href: "/admin/contacts", icon: <MailOutlined />, hint: "Contact inbox" },
-] as const;
-
-type OverviewData = Record<(typeof sections)[number]["key"], AdminRecord[]>;
+import { formatAdminDate, formatAdminPrice } from "@/lib/admin-utils";
+import { adminApi, type AdminDashboardOverview } from "@/services/api";
+import { OrderCharts } from "@/components/order-charts";
 
 export function DashboardOverview() {
   const { user } = useAuth();
-  const { data, error, loading } = useAdminResource(async (): Promise<OverviewData> => {
-    const [products, artists, collections, orders, contacts] = await Promise.all([
-      adminApi.products.list(), adminApi.artists.list(), adminApi.collections.list(),
-      adminApi.orders.list(), adminApi.contacts.list(),
-    ]);
-    return {
-      products: toAdminRows(products.data), artists: toAdminRows(artists.data),
-      collections: toAdminRows(collections.data), orders: toAdminRows(orders.data),
-      contacts: toAdminRows(contacts.data),
-    };
+  const { data: overview, error, loading } = useAdminResource(async (): Promise<AdminDashboardOverview> => {
+    const response = await adminApi.adminDashboard.overview();
+    return response.data;
   }, []);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user?.name.split(" ")[0] || "there";
-  const openOrders = data?.orders.filter((order) => !["delivered", "cancelled"].includes(String(order.fulfillmentStatus || order.status).toLowerCase())).length ?? 0;
-  const newMessages = data?.contacts.filter((contact) => String(contact.status || "new") === "new").length ?? 0;
+
+  const recentOrderColumns: TableColumnsType<AdminDashboardOverview["recentOrders"][number]> = [
+    {
+      title: "Order",
+      dataIndex: "reference",
+      key: "reference",
+      render: (reference: string) => (
+        <Link href={`/admin/orders/${encodeURIComponent(reference)}`}>{reference}</Link>
+      ),
+    },
+    {
+      title: "Customer",
+      key: "customer",
+      render: (_, order) => <div>
+        <Typography.Text strong>{order.customerName}</Typography.Text><br />
+        <Typography.Text type="secondary">{order.customerEmail}</Typography.Text>
+      </div>,
+    },
+    {
+      title: "Total",
+      key: "total",
+      render: (_, order) => formatAdminPrice(order.total, order.currency),
+    },
+    {
+      title: "Order status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => <StatusChip value={status} />,
+    },
+    {
+      title: "Payment",
+      dataIndex: "paymentStatus",
+      key: "paymentStatus",
+      render: (status: string) => <StatusChip value={status} />,
+    },
+    {
+      title: "Created",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (createdAt: string) => formatAdminDate(createdAt),
+    },
+  ];
 
   return <>
     <AdminPageHeader title={`${greeting}, ${firstName}`} description="Here’s what’s happening in the gallery today." />
     {error && <Alert showIcon type="error" title={error} />}
 
-    {/* 5-card grid */}
+    <Typography.Title level={2}>Overview</Typography.Title>
+    <Typography.Paragraph type="secondary">
+      {overview ? `${overview.period.from} – ${overview.period.to}` : "Loading dashboard summary…"}
+    </Typography.Paragraph>
     <Row gutter={[16, 16]} className="adm-stat-grid" aria-busy={loading}>
-      {sections.map(({ key, label, href, icon, hint }) => {
-        const count = data?.[key].length ?? 0;
-        const subtitle = key === "orders" ? `${openOrders} open` : key === "contacts" ? `${newMessages} new` : hint;
-        return (
-          <Col xs={24} sm={12} md={8} lg={8} xl={4} xxl={4} key={key} style={{ flex: "1 0 20%", maxWidth: "20%" }}>
-            <Link className="adm-stat-link" href={href}>
-              <Card hoverable className="adm-antd-stat">
-                <Statistic
-                  title={label}
-                  value={loading ? 0 : count}
-                  prefix={icon}
-                  suffix={<Typography.Text type="secondary">{subtitle}</Typography.Text>}
-                />
-              </Card>
-            </Link>
-          </Col>
-        );
-      })}
+      {[
+        { label: "Total orders", value: overview?.summary.totalOrders ?? 0 },
+        { label: "Paid orders", value: overview?.summary.paidOrders ?? 0 },
+        { label: "Pending payments", value: overview?.summary.pendingPayments ?? 0 },
+      ].map(({ label, value }) => (
+        <Col xs={12} sm={8} lg={6} key={label}>
+          <Card className="adm-antd-stat"><Statistic title={label} value={loading ? 0 : value} /></Card>
+        </Col>
+      ))}
+      <Col xs={24} sm={8} lg={6}>
+        <Card className="adm-antd-stat" title="Sales">
+          {loading ? <Skeleton active paragraph={false} /> : overview?.summary.salesByCurrency.length
+            ? overview.summary.salesByCurrency.map((sale) => (
+              <Statistic key={sale.currency} value={formatAdminPrice(sale.amount, sale.currency)} />
+            ))
+            : <Typography.Text type="secondary">No sales yet</Typography.Text>}
+        </Card>
+      </Col>
     </Row>
+    <OrderCharts overview={overview} loading={loading} />
+    <Card
+      title="Recent orders"
+      extra={<Link href="/admin/orders">View all orders</Link>}
+      className="adm-antd-card adm-dashboard-panels"
+    >
+      <Table
+        size="small"
+        scroll={{ x: 1000 }}
+        rowKey="reference"
+        pagination={{ pageSize: 10, hideOnSinglePage: true }}
+        dataSource={overview?.recentOrders ?? []}
+        columns={recentOrderColumns}
+        loading={loading}
+        locale={{ emptyText: <Empty description="No recent orders" /> }}
+      />
+    </Card>
 
-    <Row gutter={[16, 16]} className="adm-dashboard-panels">
-      {(["orders", "contacts"] as const).map((key) => {
-        const label = key === "orders" ? "Latest orders" : "Latest messages";
-        const href = `/admin/${key}`;
-        const latest = (data?.[key] ?? []).slice(0, 5);
-        return <Col xs={24} xl={12} key={key}>
-          <Card title={label} extra={<Link href={href}>View all <ArrowRightOutlined /></Link>} className="adm-antd-card">
-            {loading ? <Skeleton active /> : latest.length ? <Listy
-              items={latest}
-              virtual={false}
-              rowKey={(record) => String(record.reference || record.id)}
-              itemRender={(record) => {
-                const recordHref = key === "orders"
-                  ? `/admin/orders/${encodeURIComponent(String(record.reference || ""))}`
-                  : `/admin/contacts/${encodeURIComponent(String(record.id || ""))}`;
-                return <div className="adm-listy-row">
-                  <div>
-                    <Typography.Paragraph className="adm-listy-title">
-                      <Link href={recordHref}>{String(record.reference || record.name || record.email || "Record")}</Link>
-                    </Typography.Paragraph>
-                    <Typography.Text type="secondary">
-                      {key === "orders" ? [record.customerName, record.paymentStatus].filter(Boolean).join(" · ") : [record.email, record.subject].filter(Boolean).join(" · ")}
-                    </Typography.Text>
-                  </div>
-                  <StatusChip value={String(key === "orders" ? record.fulfillmentStatus || record.status || "" : record.status || "new")} />
-                </div>;
-              }}
-            /> : <Empty description={`No ${key} yet`} />}
-          </Card>
-        </Col>;
-      })}
-    </Row>
   </>;
 }

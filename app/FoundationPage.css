@@ -96,3 +96,122 @@
   .foundation-intro { grid-template-columns: 1fr; row-gap: 24px; }
   .foundation-gallery { grid-template-columns: repeat(2, 1fr); row-gap: 4px; padding-right: 0; }
 }
+
+/* ===== EVENTS SECTION ===== */
+.foundation-events {
+  padding: 60px 0;
+}
+
+.foundation-events-title {
+  font-size: 2rem;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.foundation-events-subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 40px;
+}
+
+.foundation-events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 28px;
+}
+
+.foundation-event-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.foundation-event-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.foundation-event-image {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.foundation-event-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.foundation-event-date {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+
+.foundation-event-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 8px;
+}
+
+.foundation-event-body h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.foundation-event-location {
+  margin: 0;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.foundation-event-desc {
+  margin: 0;
+  color: #555;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.foundation-event-btn {
+  margin-top: 12px;
+  align-self: flex-start;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.foundation-event-btn:hover {
+  background: #333;
+}
+
+.foundation-event-btn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 600px) {
+  .foundation-events-grid {
+    grid-template-columns: 1fr;
+  }
+}
