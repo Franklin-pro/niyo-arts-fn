@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   AppstoreOutlined,
+  CoffeeOutlined,
+  CalendarOutlined,
   DashboardOutlined,
   LogoutOutlined,
   MailOutlined,
@@ -21,6 +23,8 @@ const links = [
   { href: "/admin/products", label: "Arts", icon: <AppstoreOutlined /> },
   { href: "/admin/artists", label: "Artists", icon: <UserOutlined /> },
   { href: "/admin/collections", label: "Collections", icon: <AppstoreOutlined /> },
+  { href: "/admin/cafe", label: "Cafe", icon: <CoffeeOutlined /> },
+  { href: "/admin/foundation", label: "Foundation", icon: <CalendarOutlined /> },
   { href: "/admin/orders", label: "Orders", icon: <ShoppingOutlined /> },
   { href: "/admin/contacts", label: "Messages", icon: <MailOutlined /> },
 ];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ApiArtist, ApiCollection, ApiProduct } from "@/services/api";
+import type { ApiArtist, ApiCollection, ApiProduct, ProductImages } from "@/services/api";
 import type { CartProduct } from "@/components/site-provider";
 
 export type Product = {
@@ -15,6 +15,8 @@ export type Product = {
   price: number;
   currency: string;
   image: string;
+  images?: ProductImages;
+  size?: string;
   description: string;
 };
 
@@ -51,7 +53,9 @@ export function toProduct(product: ApiProduct): Product {
     category: product.category,
     price: product.price,
     currency: product.currency,
-    image: product.imageUrl,
+    image: product.images?.front || product.imageUrl,
+    images: product.images,
+    size: product.size,
     description: product.description,
   };
 }

@@ -158,9 +158,13 @@ export function Listing({ mode = "shop", onAdd, adding }: { mode?: string; onAdd
     </>
   );
 }
+// Replace the existing `ProductPage` function in your catalog file with this one.
+// No new imports needed (uses Link, useState, Button, App, ArrowLeftOutlined, ArrowUpOutlined, DownOutlined already imported).
+
 export function ProductPage({ slug, onAdd, adding }: { slug: string; onAdd: (p: Product) => Promise<void>; adding: boolean }) {
   const { message } = App.useApp();
   const [addPending, setAddPending] = useState(false);
+  const [selectedImageView, setSelectedImageView] = useState("front");
   const { data: p, error, loading } = useResource(
     () => getProduct(slug).then((result) => toProduct(result.data)),
     [slug],
@@ -177,6 +181,7 @@ export function ProductPage({ slug, onAdd, adding }: { slug: string; onAdd: (p: 
       setAddPending(false);
     }
   };
+
   if (loading) return <p className="page-intro" role="status">Loading artwork…</p>;
   if (error || !p)
     return (
@@ -187,37 +192,94 @@ export function ProductPage({ slug, onAdd, adding }: { slug: string; onAdd: (p: 
         <Link className="text-link" href="/shop">Back to the shop <ArrowUpOutlined /></Link>
       </section>
     );
+
+  const productImages = (p.images
+    ? [
+        { view: "front", label: "Front", src: p.images.front },
+        { view: "right", label: "Right", src: p.images.right },
+        { view: "left", label: "Left", src: p.images.left },
+      ]
+    : [{ view: "front", label: "Front", src: p.image }]
+  ).filter((image) => image.src);
+  const selectedImage = productImages.find((image) => image.view === selectedImageView) || productImages[0];
+
   return (
     <section className="product-page">
       <Link className="back-link" href="/shop">
         <ArrowLeftOutlined /> Back to shop
       </Link>
+
       <div className="product-layout">
+        {/* ---------- Images ---------- */}
         <div className="product-gallery">
-          {/* <img src={p.image} alt={p.title} /> */}
-          <img src={p.image} alt={`${p.title} detail`} />
+          <div className="product-stage">
+            <img src={selectedImage.src} alt={`${p.title}, ${selectedImage.label.toLowerCase()} view`} />
+          </div>
+          {productImages.length > 1 && (
+            <div className="product-gallery-views" role="group" aria-label="Artwork views">
+              {productImages.map((image) => (
+                <button
+                  key={image.view}
+                  type="button"
+                  className={selectedImage.view === image.view ? "selected" : ""}
+                  aria-label={`Show ${image.label.toLowerCase()} view`}
+                  aria-pressed={selectedImage.view === image.view}
+                  onClick={() => setSelectedImageView(image.view)}
+                >
+                  <img src={image.src} alt="" />
+                  <span>{image.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* ---------- Info ---------- */}
         <div className="product-info">
-          <p className="section-kicker">{p.type}</p>
+          <p className="product-type">{p.type}</p>
           <h1>{p.title}</h1>
           <p className="artist-name">
-            by {p.artistSlug
-              ? <Link href={`/artists/${p.artistSlug}`}>{p.artist}</Link>
-              : p.artist}
+            by {p.artistSlug ? <Link href={`/artists/${p.artistSlug}`}>{p.artist}</Link> : p.artist}
           </p>
+
           <p className="product-price">
-            {p.currency} {p.price.toLocaleString()}
+            <span>{p.currency}</span> {p.price.toLocaleString()}
           </p>
-          <p className="product-description">
-            {p.description}
-          </p>
-          <Button className="button-link add-button" type="primary" loading={isAdding} disabled={isAdding}
-            onClick={() => { void handleAdd(); }}
-            icon={!isAdding ? <ArrowUpOutlined /> : undefined}>
-            {isAdding ? "Adding…" : "Add & checkout"}
-          </Button>
+
+          <div className="product-buy">
+            <Button
+              className="button-link add-button"
+              type="primary"
+              size="large"
+              loading={isAdding}
+              disabled={isAdding}
+              onClick={() => { void handleAdd(); }}
+              icon={!isAdding ? <ArrowUpOutlined /> : undefined}
+            >
+              {isAdding ? "Adding…" : "Add & checkout"}
+            </Button>
+            <p className="product-buy-note">Ships within 3–5 business days. Secure checkout.</p>
+          </div>
+
+          <div className="product-section">
+            <h2>About this work</h2>
+            <p className="product-description">{p.description || "No description provided."}</p>
+          </div>
+
+          <dl className="product-facts">
+            <div><dt>Type</dt><dd>{p.type}</dd></div>
+            <div>
+              <dt>Artist</dt>
+              <dd>{p.artistSlug ? <Link href={`/artists/${p.artistSlug}`}>{p.artist}</Link> : p.artist}</dd>
+            </div>
+            {p.size && <div><dt>Size</dt><dd>{p.size}</dd></div>}
+            {productImages.length > 1 && (
+              <div><dt>Views</dt><dd>{productImages.map((image) => image.label).join(", ")}</dd></div>
+            )}
+          </dl>
+
           <div className="accordions">
-            <details>
+            <details open>
               <summary>Delivery & returns <DownOutlined /></summary>
               <p>Carefully packed and dispatched within 3–5 business days.</p>
             </details>
@@ -282,11 +344,80 @@ export function Artists({ slug }: { slug?: string }) {
     },
     [slug],
   );
+
+  if (slug) {
+    const artist = data?.[0];
+    if (loading) {
+      return <section className="artists-page"><p role="status">Loading artist…</p></section>;
+    }
+    if (error || !artist) {
+      return (
+        <section className="artists-page">
+          {error ? <p className="field-error" role="alert">{error}</p> : <Empty description="Artist not found" />}
+          <Link className="text-link" href="/artists"><ArrowLeftOutlined /> Back to artists</Link>
+        </section>
+      );
+    }
+
+    return (
+      <>
+        <section className="artist-profile-page">
+          <Link className="back-link" href="/artists"><ArrowLeftOutlined /> Back to artists</Link>
+          <div className="artist-profile-showcase">
+            <div className="artist-profile-image">
+              <img src={artist.image} alt={`${artist.name} portrait`} />
+            </div>
+            <div className="artist-profile-info">
+              <span className="artist-profile-label">Artist profile</span>
+              <h1>{artist.name}</h1>
+              <div className="artist-profile-tags">
+                {artist.medium && <span>{artist.medium}</span>}
+                {artist.location && <span>{artist.location}</span>}
+              </div>
+              <p className="artist-profile-bio">{artist.bio || "No artist biography provided."}</p>
+              <div className="artist-profile-stats">
+                <div>
+                  <span>Artworks</span>
+                  <strong>{artist.workCount ?? artist.products.length}</strong>
+                </div>
+                {artist.startingPrice !== null && artist.startingPrice !== undefined && (
+                  <div>
+                    <span>Starting price</span>
+                    <strong>{formatPrice(artist.startingPrice, "RWF")}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="artist-profile-works">
+          <header>
+            <p className="section-kicker">Selected work</p>
+            <h2>Artworks by {artist.name}</h2>
+          </header>
+          {artist.products.length ? (
+            <div className="artist-profile-work-grid">
+              {artist.products.map((product) => (
+                <Link key={product.slug} href={`/shop/${encodeURIComponent(product.slug)}`} className="artist-profile-work">
+                  <img src={product.image} alt={product.title} loading="lazy" decoding="async" />
+                  <span>{product.title}</span>
+                  <small>{formatPrice(product.price, product.currency)}</small>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Empty description="No artwork is currently linked to this artist." />
+          )}
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <section className="page-intro">
         <p className="section-kicker">Niyo Arts / Artists</p>
-        <h1>{slug ? data?.[0]?.name || "Artist" : "Meet the makers."}</h1>
+        <h1>Meet the makers.</h1>
         <p>Painters, photographers and digital artists from across the world, each with a distinct way of seeing.</p>
       </section>
       <section className="artists-page">
@@ -325,12 +456,12 @@ export function Artists({ slug }: { slug?: string }) {
                   </div>
                   <span className="artist-location">{a.location}</span>
                 </div>
-                <p className="artist-bio">{a.bio}</p>
+                <p className="artist-bio w-96 truncate">{a.bio}</p>
                 <p className="artist-stats">
                   {a.workCount ?? works.length} {((a.workCount ?? works.length) === 1) ? "work" : "works"}
                   {a.startingPrice !== null && a.startingPrice !== undefined ? ` · from $${a.startingPrice.toLocaleString()}` : ""}
                 </p>
-                {slug && <p>{a.bio}</p>}
+                {/* {slug && <p className="w-32 truncate">{a.bio}</p>} */}
               </Link>
             );
           })}

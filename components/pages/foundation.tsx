@@ -1,4 +1,7 @@
-import { Image } from "antd";
+"use client";
+
+import { useEffect, useState } from "react";
+import { Alert, Image, Modal, Spin } from "antd";
 import "../../app/FoundationPage.css";
 import hero from "../../images/drummers.jpeg";
 import drummers from "../../images/drummers.jpeg";
@@ -6,50 +9,53 @@ import g1 from "../../images/gallery-1.jpeg";
 import g2 from "../../images/gallery-2.jpeg";
 import g3 from "../../images/gallery-3.jpeg";
 import g4 from "../../images/gallery-4.jpeg";
+import { getEvent, getEvents } from "@/services/api";
+import type { ApiEvent } from "@/services/api";
 
 const gallery = [g1, g2, g3, g4];
 
-// Sample events data — replace with your real data (e.g., from an API or CMS)
-const events = [
-  {
-    id: 1,
-    title: "Annual Drumming Workshop",
-    date: "March 15, 2025",
-    location: "Niyo Gallery, Kigali",
-    description:
-      "Join us for a full-day drumming workshop led by Niyo Foundation artists. All proceeds support children in the streets.",
-    image: g1,
-  },
-  {
-    id: 2,
-    title: "Art & Resilience Exhibition",
-    date: "April 22, 2025",
-    location: "Niyo Gallery Main Hall",
-    description:
-      "A showcase of handcraft and artwork created by single mothers and genocide survivors in our program.",
-    image: g2,
-  },
-  {
-    id: 3,
-    title: "Sewing Skills Graduation",
-    date: "May 10, 2025",
-    location: "Niyo Foundation Center",
-    description:
-      "Celebrate the graduation of our latest sewing cohort as they launch their independent businesses.",
-    image: g3,
-  },
-  {
-    id: 4,
-    title: "Community Dance Night",
-    date: "June 5, 2025",
-    location: "Niyo Gallery Courtyard",
-    description:
-      "An evening of dance, music, and community. Open to all — come support our dancers and enjoy live performances.",
-    image: g4,
-  },
-];
-
 export function FoundationPage() {
+  const [events, setEvents] = useState<ApiEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [eventDetailsLoading, setEventDetailsLoading] = useState(false);
+  const [eventDetailsError, setEventDetailsError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getEvents()
+      .then(({ data }) => {
+        if (active) setEvents(data);
+      })
+      .catch((reason: unknown) => {
+        if (active) setEventsError(reason instanceof Error ? reason.message : "Unable to load events.");
+      })
+      .finally(() => {
+        if (active) setEventsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function showEventDetails(id: string) {
+    setEventDetailsOpen(true);
+    setSelectedEvent(null);
+    setEventDetailsError("");
+    setEventDetailsLoading(true);
+    try {
+      const { data } = await getEvent(id);
+      setSelectedEvent(data);
+    } catch (reason) {
+      setEventDetailsError(reason instanceof Error ? reason.message : "Unable to load event details.");
+    } finally {
+      setEventDetailsLoading(false);
+    }
+  }
+
   return (
     <div className="foundation-page">
       <div className="foundation-container">
@@ -94,29 +100,29 @@ export function FoundationPage() {
           </p>
 
           <div className="foundation-events-grid">
-            {events.map((event) => (
+            {eventsLoading ? (
+              <div role="status"><Spin /> <span>Loading events…</span></div>
+            ) : eventsError ? (
+              <Alert type="error" showIcon title={eventsError} />
+            ) : events.length ? events.map((event, index) => (
               <article key={event.id} className="foundation-event-card">
                 <div className="foundation-event-image">
-                  <img src={event.image.src} alt={event.title} />
-                  <span className="foundation-event-date">{event.date}</span>
+                  <img src={event.imageUrl || gallery[index % gallery.length].src} alt={event.title} />
+                  {event.date && <span className="foundation-event-date">{event.date}</span>}
                 </div>
                 <div className="foundation-event-body">
                   <h3>{event.title}</h3>
-                  <p className="foundation-event-location">📍 {event.location}</p>
-                  <p className="foundation-event-desc">{event.description}</p>
+                  {event.location && <p className="foundation-event-location">📍 {event.location}</p>}
+                  {event.description && <p className="foundation-event-desc">{event.description}</p>}
                   <button
                     className="foundation-event-btn"
-                    onClick={() => {
-                      // Replace with your navigation logic, e.g.:
-                      // navigate(`/foundation/events/${event.id}`)
-                      console.log("View details for event", event.id);
-                    }}
+                    onClick={() => void showEventDetails(event.id)}
                   >
                     View Details
                   </button>
                 </div>
               </article>
-            ))}
+            )) : <p>No upcoming events are available right now.</p>}
           </div>
         </section>
 
@@ -128,6 +134,28 @@ export function FoundationPage() {
       </div>
 
       <div className="foundation-footer-space" />
+
+      <Modal
+        title={selectedEvent?.title || "Event details"}
+        open={eventDetailsOpen}
+        onCancel={() => setEventDetailsOpen(false)}
+        footer={null}
+      >
+        {eventDetailsLoading ? (
+          <Spin aria-label="Loading event details" />
+        ) : eventDetailsError ? (
+          <Alert type="error" showIcon title={eventDetailsError} />
+        ) : selectedEvent ? (
+          <div>
+            {selectedEvent.imageUrl && (
+              <Image src={selectedEvent.imageUrl} alt={selectedEvent.title} />
+            )}
+            {selectedEvent.date && <p>{selectedEvent.date}</p>}
+            {selectedEvent.location && <p>{selectedEvent.location}</p>}
+            {selectedEvent.description && <p>{selectedEvent.description}</p>}
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

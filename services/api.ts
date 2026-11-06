@@ -20,6 +20,48 @@ export interface ApiCollection {
   products: ApiProduct[];
 }
 
+export interface CafeMenu {
+  id?: string;
+  url?: string;
+  pdfUrl?: string;
+  menuUrl?: string;
+  publicId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CafeMenuResponse = CafeMenu | CafeMenu[] | string;
+
+export function getCafeMenuPdfUrl(menu: CafeMenuResponse) {
+  if (typeof menu === "string") return menu;
+  const currentMenu = Array.isArray(menu) ? menu[0] : menu;
+  return currentMenu?.pdfUrl || currentMenu?.url || currentMenu?.menuUrl || "";
+}
+
+export interface CafeGalleryImage {
+  id: string;
+  url?: string;
+  imageUrl?: string;
+  alt?: string;
+}
+
+export interface ApiEvent {
+  id: string;
+  title: string;
+  date?: string;
+  location?: string;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface AdminEventInput {
+  title: string;
+  date: string;
+  location: string;
+  description: string;
+  imageUrl?: string;
+}
+
 export interface ApiProduct {
   id: string;
   slug: string;
@@ -30,7 +72,21 @@ export interface ApiProduct {
   price: number;
   currency: string;
   imageUrl: string;
+  images?: ProductImages;
+  size?: string;
   description: string;
+}
+
+export interface ProductImages {
+  front: string;
+  right: string;
+  left: string;
+}
+
+export interface ProductImageFiles {
+  front: File;
+  right: File;
+  left: File;
 }
 
 export interface ProductQuery {
@@ -177,7 +233,9 @@ function getApiBaseUrl() {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   const headers = new Headers(init?.headers);
-  if (init?.body) headers.set("Content-Type", "application/json");
+  if (init?.body && !(typeof FormData !== "undefined" && init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   if (typeof window !== "undefined") {
     const accessToken = window.localStorage.getItem(ACCESS_TOKEN_KEY);
     if (accessToken && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${accessToken}`);
@@ -288,6 +346,22 @@ export async function getCollection(slug: string) {
   return request<ApiResponse<ApiCollection>>(`/collections/${encodeURIComponent(slug)}`);
 }
 
+export async function getCafeMenu() {
+  return request<ApiResponse<CafeMenuResponse>>("/cafe/menu");
+}
+
+export async function getCafeGallery() {
+  return request<ApiResponse<CafeGalleryImage[]>>("/cafe/gallery");
+}
+
+export async function getEvents() {
+  return request<ApiResponse<ApiEvent[]>>("/events");
+}
+
+export async function getEvent(id: string) {
+  return request<ApiResponse<ApiEvent>>(`/events/${encodeURIComponent(id)}`);
+}
+
 export interface CreateOrderInput {
   cartId?: string;
   items?: { productSlug: string; quantity: number }[];
@@ -382,7 +456,8 @@ export interface AdminProductInput {
   category: string;
   price: number;
   currency: string;
-  imageUrl: string;
+  images?: ProductImages;
+  size?: string;
   description: string;
 }
 
@@ -413,6 +488,12 @@ async function adminRequest<T>(path: string, method = "GET", body?: unknown) {
   });
 }
 
+async function adminUpload<T>(path: string, file: File, fieldName: string, method = "POST") {
+  const body = new FormData();
+  body.append(fieldName, file);
+  return request<T>(`/admin${path}`, { method, body });
+}
+
 export const adminApi = {
   adminDashboard: {
     overview: () => adminRequest<ApiResponse<AdminDashboardOverview>>("/dashboard"),
@@ -422,6 +503,16 @@ export const adminApi = {
     create: (input: AdminProductInput) => adminRequest<ApiResponse<ApiProduct>>("/products", "POST", input),
     update: (slug: string, input: Partial<AdminProductInput>) =>
       adminRequest<ApiResponse<ApiProduct>>(`/products/${encodeURIComponent(slug)}`, "PUT", input),
+    uploadImages: (files: ProductImageFiles) => {
+      const body = new FormData();
+      body.append("front", files.front);
+      body.append("right", files.right);
+      body.append("left", files.left);
+      return request<ApiResponse<{ images: ProductImages }>>("/admin/products/images", {
+        method: "POST",
+        body,
+      });
+    },
     remove: (slug: string) => adminRequest<void>(`/products/${encodeURIComponent(slug)}`, "DELETE"),
   },
   artists: {
@@ -451,6 +542,25 @@ export const adminApi = {
     updateStatus: (id: string, status: "new" | "read" | "replied") =>
       adminRequest<ApiResponse<unknown>>(`/contacts/${encodeURIComponent(id)}`, "PATCH", { status }),
     remove: (id: string) => adminRequest<void>(`/contacts/${encodeURIComponent(id)}`, "DELETE"),
+  },
+  cafe: {
+    menu: {
+      get: () => adminRequest<ApiResponse<CafeMenuResponse>>("/cafe/menu"),
+      upload: (file: File) => adminUpload<ApiResponse<CafeMenu>>("/cafe/menu", file, "menu"),
+      replace: (file: File) => adminUpload<ApiResponse<CafeMenu>>("/cafe/menu", file, "menu", "PUT"),
+    },
+    gallery: {
+      list: () => adminRequest<ApiResponse<CafeGalleryImage[]>>("/cafe/gallery"),
+      upload: (file: File) => adminUpload<ApiResponse<CafeGalleryImage>>("/cafe/gallery", file, "image"),
+      remove: (id: string) => adminRequest<void>(`/cafe/gallery/${encodeURIComponent(id)}`, "DELETE"),
+    },
+  },
+  events: {
+    list: () => adminRequest<ApiResponse<ApiEvent[]>>("/events"),
+    create: (input: AdminEventInput) => adminRequest<ApiResponse<ApiEvent>>("/events", "POST", input),
+    update: (id: string, input: Partial<AdminEventInput>) =>
+      adminRequest<ApiResponse<ApiEvent>>(`/events/${encodeURIComponent(id)}`, "PUT", input),
+    remove: (id: string) => adminRequest<void>(`/events/${encodeURIComponent(id)}`, "DELETE"),
   },
 };
 
